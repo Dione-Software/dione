@@ -1,0 +1,17 @@
+[package]
+name = "dione-server"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tonic = "0.4.3"
+prost = "0.7"
+tokio = { version = "1.7", features = ["macros", "rt-multi-thread"] }
+tracing = "0.1"
+tracing-subscriber = "0.2.18"
+adler = {version = "1.0.2", default-features = false}
+
+[build-dependencies]
+tonic-build = "0.4"

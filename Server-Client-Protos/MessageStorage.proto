@@ -1,0 +1,16 @@
+syntax = "proto2";
+package messagestorage;
+
+message SaveMessageRequest {
+  required bytes addr = 1;
+  required bytes content = 2;
+}
+
+message SaveMessageResponse {
+  required int32 code = 1;
+  optional bytes hash = 2;
+}
+
+service MessageStorage {
+  rpc SaveMessage (SaveMessageRequest) returns (SaveMessageResponse);
+}
