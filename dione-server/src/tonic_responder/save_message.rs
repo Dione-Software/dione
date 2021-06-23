@@ -1,4 +1,3 @@
-use adler::Adler32;
 use tonic::{Request, Response, Status};
 use tracing::*;
 
@@ -20,20 +19,14 @@ impl MessageStorage for MessageStorer {
 
 		let request_data = request.into_inner();
 
-		let content = &request_data.content;
-
-		let mut hasher = Adler32::new();
-
-		event!(Level::DEBUG, "Calculating Hash");
-
-		hasher.write_slice(content);
-		let checksum = hasher.checksum().to_be_bytes();
+		let (hash_type, hash) = request_data.hash_content();
 
 		event!(Level::DEBUG, "Calculated Hash");
 
 		let reply = SaveMessageResponse {
 			code: 200,
-			hash: Some(checksum.to_vec()),
+			hash: Some(hash),
+			hash_type: Some(hash_type.into()),
 		};
 
 		event!(Level::DEBUG, "Formulated Response");

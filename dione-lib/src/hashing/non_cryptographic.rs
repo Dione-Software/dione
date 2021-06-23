@@ -1,11 +1,13 @@
-pub fn adler_hash_bytes(data: &[u8]) -> u32 {
+use alloc::vec::Vec;
+
+pub fn adler_hash_bytes(data: &[u8]) -> Vec<u8> {
 	let mut hasher = adler::Adler32::new();
 	hasher.write_slice(data);
-	hasher.checksum()
+	hasher.checksum().to_be_bytes().to_vec()
 }
 
-pub fn seahash_hash_bytes(data: &[u8]) -> u64 {
-	seahash::hash(data)
+pub fn seahash_hash_bytes(data: &[u8]) -> Vec<u8> {
+	seahash::hash(data).to_be_bytes().to_vec()
 }
 
 #[cfg(test)]

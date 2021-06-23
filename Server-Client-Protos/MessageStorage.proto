@@ -1,6 +1,12 @@
 syntax = "proto2";
 package messagestorage;
 
+enum HashType {
+  SHA512 = 1;
+  ADLER32 = 2;
+  LZ4 = 3;
+}
+
 message SaveMessageRequest {
   required bytes addr = 1;
   required bytes content = 2;
@@ -9,6 +15,7 @@ message SaveMessageRequest {
 message SaveMessageResponse {
   required int32 code = 1;
   optional bytes hash = 2;
+  optional HashType hash_type = 3;
 }
 
 service MessageStorage {
