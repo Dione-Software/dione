@@ -34,26 +34,21 @@ impl SharingAlgorithm for ShamirSecretSharingShark {
 pub struct ThresholdSecretSharing;
 
 impl SharingAlgorithm for ThresholdSecretSharing {
-	fn share(&self, data: &[u8], n: usize, t: u8) -> Vec<Vec<u8>> {
+	fn share(&self, _data: &[u8], _n: usize, _t: u8) -> Vec<Vec<u8>> {
 		todo!()
 	}
 
-	fn reconstruct(&self, inp: &[Vec<u8>], t: u8) -> Result<Vec<u8>, SharingError> {
+	fn reconstruct(&self, _inp: &[Vec<u8>], _t: u8) -> Result<Vec<u8>, SharingError> {
 		todo!()
 	}
 }
 
-#[cfg(test)]
-mod shamir_secret_sharing {
-    use crate::cryptography::sharing::shamir::ShamirSecretSharingShark;
-    use crate::cryptography::sharing::SharingAlgorithm;
 
-    #[test]
-	fn sharing_reconstruction() {
-		let data = b"Helo World This Is Just A Test";
-		let sharer = ShamirSecretSharingShark;
-		let shares = sharer.share(data, 200, 64);
-		let reconstructed = sharer.reconstruct(&shares, 64).unwrap();
-		assert_eq!(data.to_vec(), reconstructed)
-	}
+#[test]
+fn sharing_reconstruction() {
+	let data = b"Helo World This Is Just A Test";
+	let sharer = ShamirSecretSharingShark;
+	let shares = sharer.share(data, 200, 64);
+	let reconstructed = sharer.reconstruct(&shares, 64).unwrap();
+	assert_eq!(data.to_vec(), reconstructed)
 }
