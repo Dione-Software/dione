@@ -12,10 +12,18 @@ lz4_flex = "0.8.2"
 ring-compat = {version = "0.3.1", features = ["digest"], default-features = false}
 digest = "0.9"
 zeroize = "1.3.0"
+sharks = "0.5.0"
+rand = "0.8.4"
+rand_core = "0.6.3"
+threshold-secret-sharing = "0.2"
 
 [dev-dependencies]
 criterion = "0.3.4"
 
 [[bench]]
 name = "hashing_benchmark"
+harness = false
+
+[[bench]]
+name = "sharing"
 harness = false

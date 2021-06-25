@@ -1,8 +1,8 @@
 use serde_derive::Deserialize;
-use std::str::FromStr;
-use std::path::Path;
 use std::fs::read_to_string;
-use std::net::{SocketAddr, IpAddr};
+use std::net::{IpAddr, SocketAddr};
+use std::path::Path;
+use std::str::FromStr;
 
 #[derive(Deserialize, Debug)]
 pub(crate) struct NetworkCon {
@@ -36,8 +36,7 @@ impl FromStr for Conf {
 impl From<NetworkCon> for SocketAddr {
     fn from(conf: NetworkCon) -> Self {
         let ip_str = conf.ip;
-        let ip = IpAddr::from_str(&ip_str)
-            .expect("Error parsing IP-Address");
+        let ip = IpAddr::from_str(&ip_str).expect("Error parsing IP-Address");
         SocketAddr::new(ip, conf.port)
     }
 }
