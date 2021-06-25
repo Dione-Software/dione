@@ -21,7 +21,7 @@ fn verify_hash(hash_type_number: i32, content: &[u8], hash: &[u8]) -> bool {
 #[tokio::main]
 async fn main() {
 
-	let mut client = MessageStorageClient::connect("http://[::1]:50051")
+	let mut client = MessageStorageClient::connect("http://127.0.0.1:50051")
 		.await
 		.unwrap();
 
