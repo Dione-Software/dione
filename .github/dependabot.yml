@@ -9,12 +9,12 @@ updates:
     directory: "/dione-lib" # Location of package manifests
     schedule:
       interval: "daily"
-  
+
   - package-ecosystem: "cargo" # See documentation for possible values
     directory: "/dione-server" # Location of package manifests
     schedule:
       interval: "daily"
-      
+
   - package-ecosystem: "cargo" # See documentation for possible values
     directory: "/dione-test-client" # Location of package manifests
     schedule:
