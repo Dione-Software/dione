@@ -1,0 +1,4 @@
+CREATE TABLE messages (
+    id INTEGER NOT NULL PRIMARY KEY,
+    content TEXT NOT NULL
+)

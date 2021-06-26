@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate diesel;
+
 use tonic::transport::Server;
 use tracing::Level;
 
@@ -5,6 +8,7 @@ use crate::tonic_responder::save_message::MessageStorer;
 use std::str::FromStr;
 use std::path::Path;
 use crate::config::conf_ex::Conf;
+use crate::db::messages_db::Messages;
 
 pub(crate) mod message_storage {
 	include!(concat!(env!("OUT_DIR"), "/messagestorage.rs"));
@@ -14,6 +18,7 @@ pub(crate) mod message_storage {
 
 mod tonic_responder;
 mod config;
+mod db;
 
 #[tokio::main]
 async fn main() {
@@ -25,7 +30,9 @@ async fn main() {
 
 	tracing::subscriber::set_global_default(collector)
 		.expect("Something fucked up during setting up collector");
-
+	
+	let db = Messages::establish_connection();
+	
 	let addr= config.network_con.message_storage.into();
 	let greeter = MessageStorer::default();
 
