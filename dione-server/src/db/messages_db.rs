@@ -11,9 +11,6 @@ pub struct Messages {
 
 impl Messages {
 	pub fn establish_connection() -> Messages {
-		trace!("Loading .env file");
-		dotenv().ok();
-		
 		let database_url = env::var("DATABASE_URL")
 			.expect("DATABASE_URL must be set");
 		
