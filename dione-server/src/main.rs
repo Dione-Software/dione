@@ -7,7 +7,7 @@ use std::path::Path;
 use crate::config::conf_ex::Conf;
 
 pub(crate) mod message_storage {
-	tonic::include_proto!("messagestorage");
+	include!(concat!(env!("OUT_DIR"), "/messagestorage.rs"));
 }
 
 
