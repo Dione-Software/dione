@@ -3,12 +3,12 @@ use crate::db::schema::messages;
 #[derive(Queryable)]
 pub struct Message {
 	pub id: i32,
-	pub content: String
+	pub content: Vec<u8>
 }
 
 #[derive(Insertable)]
 #[table_name="messages"]
 pub struct NewMessage<'a> {
 	pub id: &'a i32,
-	pub content: &'a str
+	pub content: &'a Vec<u8>
 }

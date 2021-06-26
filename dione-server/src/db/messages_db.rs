@@ -26,7 +26,7 @@ impl Messages {
 		}
 	}
 	
-	pub fn save_message<'a>(&self, id: &'a i32, content: &'a str) -> Message {
+	pub fn save_message<'a>(&self, id: &'a i32, content: &'a Vec<u8>) -> Message {
 		let new_message = NewMessage {
 			id,
 			content,
