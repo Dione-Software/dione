@@ -5,7 +5,6 @@ pub mod shamir;
 #[derive(Debug, PartialEq)]
 pub enum SharingError {
 	WrongThresholdAndNumber(u8, u8),
-	TakesTooMuchMemory,
 }
 
 pub trait SharingAlgorithm {
