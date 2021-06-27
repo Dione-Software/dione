@@ -2,7 +2,6 @@ use alloc::vec::Vec;
 
 use crate::cryptography::sharing::{SharingAlgorithm, SharingError};
 use sss_rs::wrapped_sharing::{Secret, share};
-use systemstat::System;
 
 pub struct ShamirSecretSharing;
 
