@@ -4,7 +4,7 @@ pub mod shamir;
 
 #[derive(Debug, PartialEq)]
 pub enum SharingError {
-	WrongThresholdAndNumber(u8, u8),
+	WrongThresholdAndNumber(u8, u8), // The wrong threshold this is just a test commit, trying to fix my github
 }
 
 pub trait SharingAlgorithm {
