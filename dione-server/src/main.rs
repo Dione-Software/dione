@@ -16,8 +16,7 @@ mod tonic_responder;
 
 #[tokio::main]
 async fn main() {
-	let config: Conf =
-		crate::config::conf_ex::Conf::from_str("dione-server/config/dev_config.toml").unwrap();
+	let config: Conf = crate::config::conf_ex::Conf::from_str("dione-server/config/dev_config.toml").unwrap();
 
 	let collector = tracing_subscriber::fmt()
 		.with_max_level(Level::DEBUG)

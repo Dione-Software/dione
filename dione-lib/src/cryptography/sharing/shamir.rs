@@ -1,54 +1,57 @@
-use alloc::prelude::v1::Vec;
-use alloc::string::ToString;
-use core::convert::TryFrom;
-
-use rand_core::OsRng;
-use sharks::{Share, Sharks};
+use alloc::vec::Vec;
 
 use crate::cryptography::sharing::{SharingAlgorithm, SharingError};
+use sss_rs::wrapped_sharing::{Secret, share};
+use systemstat::System;
 
-pub struct ShamirSecretSharingShark;
+pub struct ShamirSecretSharing;
 
-impl SharingAlgorithm for ShamirSecretSharingShark {
-	fn share(&self, data: &[u8], n: usize, t: u8) -> Vec<Vec<u8>> {
-		let sharks = Sharks(t);
-		let dealer = sharks.dealer_rng(data, &mut OsRng);
-		let shares: Vec<Share> = dealer.take(n).collect();
-		shares.iter().map(|e| Vec::from(e)).collect()
-	}
-
-	fn reconstruct(&self, inp: &[Vec<u8>], t: u8) -> Result<Vec<u8>, SharingError> {
-		let sharks = Sharks(t);
-		let shares: Vec<Share> = inp
-			.iter()
-			.map(|e| Share::try_from(e.as_slice()).unwrap())
-			.collect();
-		let secret = sharks.recover(&shares);
-		match secret {
-			Ok(d) => Ok(d),
-			Err(e) => Err(SharingError::ThresholdNotMet(e.to_string())),
+impl SharingAlgorithm for ShamirSecretSharing {
+	fn share(&self, data: &[u8], n: u8, t: u8) -> Result<Vec<Vec<u8>>, SharingError> {
+		let secret = Secret::InMemory(data.to_vec());
+		if t > n {
+			return Err(SharingError::WrongThresholdAndNumber(n, t))
 		}
+		Ok(share(secret, t, n, false).unwrap())
+	}
+
+	fn reconstruct(&self, inp: &[Vec<u8>]) -> Result<Vec<u8>, SharingError> {
+		let mut secret = Secret::empty_in_memory();
+		secret.reconstruct(inp.to_vec(), false).unwrap();
+		let out_data = secret.unwrap_to_vec().unwrap();
+		Ok(out_data)
 	}
 }
 
-pub struct ThresholdSecretSharing;
+#[cfg(test)]
+mod sss_test {
+	use crate::cryptography::sharing::shamir::ShamirSecretSharing;
+	use crate::cryptography::sharing::{SharingAlgorithm, SharingError};
 
-impl SharingAlgorithm for ThresholdSecretSharing {
-	fn share(&self, _data: &[u8], _n: usize, _t: u8) -> Vec<Vec<u8>> {
-		todo!()
+	#[test]
+	fn success_reconstruction() {
+		let data = b"Hello World This Is Just A Test";
+		let sharer = ShamirSecretSharing;
+		let shares = sharer.share(data, 10, 5).unwrap();
+		let recon = sharer.reconstruct(&shares).unwrap();
+		assert_eq!(recon, data.to_vec())
 	}
 
-	fn reconstruct(&self, _inp: &[Vec<u8>], _t: u8) -> Result<Vec<u8>, SharingError> {
-		todo!()
+	#[test]
+	fn basic_failure() {
+		let data =  b"Hello World This Is Just A Test";
+		let sharer = ShamirSecretSharing;
+		let mut shares = sharer.share(data, 10, 10).unwrap();
+		shares.pop().unwrap();
+		let odata = sharer.reconstruct(&shares).unwrap();
+		assert_ne!(data.to_vec(), odata)
 	}
-}
 
-
-#[test]
-fn sharing_reconstruction() {
-	let data = b"Helo World This Is Just A Test";
-	let sharer = ShamirSecretSharingShark;
-	let shares = sharer.share(data, 200, 64);
-	let reconstructed = sharer.reconstruct(&shares, 64).unwrap();
-	assert_eq!(data.to_vec(), reconstructed)
+	#[test]
+	fn threshold_panic() {
+		let data = b"This will fail anyway";
+		let sharer = ShamirSecretSharing;
+		let shares = sharer.share(data, 5, 6);
+		assert_eq!(shares.unwrap_err(), SharingError::WrongThresholdAndNumber(5, 6))
+	}
 }
