@@ -30,3 +30,7 @@ harness = false
 [[bench]]
 name = "sharing"
 harness = false
+
+[[bench]]
+name = "aead_bench"
+harness = false
