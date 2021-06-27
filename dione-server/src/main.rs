@@ -6,6 +6,7 @@ use tracing::Level;
 
 use crate::config::conf_ex::Conf;
 use crate::db::messages_db::Messages;
+use prost::alloc::str::FromStr;
 
 pub(crate) mod message_storage {
 	include!(concat!(env!("OUT_DIR"), "/messagestorage.rs"));
