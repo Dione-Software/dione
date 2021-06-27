@@ -1,22 +1,23 @@
-
-use std::str::FromStr;
+#[macro_use]
+extern crate diesel;
 
 use tonic::transport::Server;
 use tracing::Level;
 
 use crate::config::conf_ex::Conf;
-use crate::tonic_responder::save_message::MessageStorer;
+use crate::db::messages_db::Messages;
 
 pub(crate) mod message_storage {
-	tonic::include_proto!("messagestorage");
+	include!(concat!(env!("OUT_DIR"), "/messagestorage.rs"));
 }
 
 mod config;
-mod tonic_responder;
+mod db;
 
 #[tokio::main]
 async fn main() {
 	let config: Conf = crate::config::conf_ex::Conf::from_str("dione-server/config/dev_config.toml").unwrap();
+	dotenv::from_path("dione-server/.env");
 
 	let collector = tracing_subscriber::fmt()
 		.with_max_level(Level::DEBUG)
@@ -24,7 +25,9 @@ async fn main() {
 
 	tracing::subscriber::set_global_default(collector)
 		.expect("Something fucked up during setting up collector");
-
+	
+	let db = Messages::establish_connection();
+	
 	let addr = config.network_con.message_storage.into();
 	let greeter = MessageStorer::default();
 
