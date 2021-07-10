@@ -8,10 +8,6 @@ use message_storage::HashType;
 
 use message_storage::message_storage_client::MessageStorageClient;
 
-pub mod message_storage {
-	tonic::include_proto!("messagestorage");
-}
-
 fn verify_hash(hash_type_number: i32, content: &[u8], hash: &[u8]) -> bool {
 	let hash_type: HashType = message_storage::HashType::from_i32(hash_type_number).unwrap();
 	let hash_algo = match hash_type {
