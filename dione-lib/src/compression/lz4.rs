@@ -11,15 +11,10 @@ pub fn decompress_lz4(data: &[u8]) -> Result<Vec<u8>, DecompressError> {
 	decompress_size_prepended(data)
 }
 
-#[cfg(test)]
-mod lz4_test {
-    use crate::compression::lz4::{compress_lz4, decompress_lz4};
-
-    #[test]
-	fn comp_decomp() {
-		let input: &[u8] = b"Hello World";
-		let compressed = compress_lz4(input);
-		let decompressed = decompress_lz4(&compressed).unwrap();
-		assert_eq!(input, &decompressed)
-	}
+#[test]
+fn comp_decomp() {
+	let input: &[u8] = b"Hello World";
+	let compressed = compress_lz4(input);
+	let decompressed = decompress_lz4(&compressed).unwrap();
+	assert_eq!(input, &decompressed)
 }

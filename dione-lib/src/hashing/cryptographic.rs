@@ -1,4 +1,5 @@
 use alloc::vec::Vec;
+
 use digest::Digest;
 
 pub fn sha512_hash_bytes(data: &[u8]) -> Vec<u8> {

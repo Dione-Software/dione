@@ -1,8 +1,10 @@
-use crate::message_storage::SaveMessageRequest;
-use crate::message_storage::HashType;
+use tracing::*;
+
 use dione_lib::hashing::cryptographic::sha512_hash_bytes;
 use dione_lib::hashing::non_cryptographic::{adler_hash_bytes, seahash_hash_bytes};
-use tracing::*;
+
+use crate::message_storage::HashType;
+use crate::message_storage::SaveMessageRequest;
 
 impl SaveMessageRequest {
 	#[instrument(skip(self))]

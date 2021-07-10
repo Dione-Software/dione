@@ -12,9 +12,9 @@ pub fn seahash_hash_bytes(data: &[u8]) -> Vec<u8> {
 
 #[cfg(test)]
 mod adler_test {
-    use crate::hashing::non_cryptographic::adler_hash_bytes;
+	use crate::hashing::non_cryptographic::adler_hash_bytes;
 
-    #[test]
+	#[test]
 	fn adler_hash_eq() {
 		let data1 = b"Hello World";
 		let data2 = b"Hello World";
@@ -35,9 +35,9 @@ mod adler_test {
 
 #[cfg(test)]
 mod seahash_test {
-    use crate::hashing::non_cryptographic::seahash_hash_bytes;
+	use crate::hashing::non_cryptographic::seahash_hash_bytes;
 
-    #[test]
+	#[test]
 	fn seahash_hash_eq() {
 		let data1 = b"Hello World";
 		let data2 = b"Hello World";

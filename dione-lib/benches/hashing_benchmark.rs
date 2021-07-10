@@ -1,8 +1,8 @@
 extern crate dione_lib;
 
 use criterion::{Criterion, criterion_group, criterion_main, Throughput};
-use dione_lib::hashing::cryptographic::sha512_hash_bytes;
 
+use dione_lib::hashing::cryptographic::sha512_hash_bytes;
 
 fn adler_bench(c: &mut Criterion) {
 	{

@@ -1,18 +1,19 @@
-use message_storage::*;
-use message_storage::HashType;
-use message_storage::message_storage_client::MessageStorageClient;
-use dione_lib::hashing::*;
-
 pub mod message_storage {
 	tonic::include_proto!("messagestorage");
 }
 
+use dione_lib::hashing::*;
+use message_storage::*;
+use message_storage::HashType;
+
+use message_storage::message_storage_client::MessageStorageClient;
+
 fn verify_hash(hash_type_number: i32, content: &[u8], hash: &[u8]) -> bool {
 	let hash_type: HashType = message_storage::HashType::from_i32(hash_type_number).unwrap();
 	let hash_algo = match hash_type {
-		HashType::Sha512 =>  { cryptographic::sha512_hash_bytes },
-		HashType::Adler32 => { non_cryptographic::adler_hash_bytes },
-		HashType::Lz4 => { non_cryptographic::seahash_hash_bytes },
+		HashType::Sha512 => cryptographic::sha512_hash_bytes,
+		HashType::Adler32 => non_cryptographic::adler_hash_bytes,
+		HashType::Lz4 => non_cryptographic::seahash_hash_bytes,
 	};
 	let compare_hash = hash_algo(content);
 	hash == compare_hash
