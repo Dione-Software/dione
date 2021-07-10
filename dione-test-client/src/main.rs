@@ -1,6 +1,11 @@
+pub mod message_storage {
+	tonic::include_proto!("messagestorage");
+}
+
 use dione_lib::hashing::*;
 use message_storage::*;
 use message_storage::HashType;
+
 use message_storage::message_storage_client::MessageStorageClient;
 
 pub mod message_storage {
@@ -20,6 +25,7 @@ fn verify_hash(hash_type_number: i32, content: &[u8], hash: &[u8]) -> bool {
 
 #[tokio::main]
 async fn main() {
+
 	let mut client = MessageStorageClient::connect("http://127.0.0.1:50051")
 		.await
 		.unwrap();
