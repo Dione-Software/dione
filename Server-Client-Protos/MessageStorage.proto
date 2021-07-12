@@ -18,6 +18,16 @@ message SaveMessageResponse {
   optional HashType hash_type = 3;
 }
 
+message GetMessageRequest {
+  required bytes addr = 1;
+}
+
+message GetMessageResponse {
+  required bytes addr = 1;
+  required bytes content = 2;
+}
+
 service MessageStorage {
   rpc SaveMessage (SaveMessageRequest) returns (SaveMessageResponse);
+  rpc GetMessage (GetMessageRequest) returns (GetMessageResponse);
 }

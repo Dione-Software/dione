@@ -5,6 +5,14 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+path = "src/lib.rs"
+name = "dione_test_client_lib"
+
+[[bin]]
+path = "src/main.rs"
+name = "dione-test-client"
+
 [dependencies]
 tonic = "0.5"
 prost = "0.8"
