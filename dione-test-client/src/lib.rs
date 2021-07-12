@@ -70,20 +70,3 @@ pub async fn get_message(net_addr: &'static str, addr: &[u8]) -> bool {
 
     addr.to_vec() == addr_m && content == b"hdheh".to_vec()
 }
-
-#[tokio::test]
-async fn send_message_test() {
-    let res = send_message("http://localhost:50051", b"Alice")
-        .await;
-    assert!(res)
-}
-
-
-#[tokio::test]
-async fn send_get_message_test() {
-    let res1 = send_message("http://localhost:50051", b"Bob")
-        .await;
-    let res2 = get_message("http://localhost:50051", b"Bob")
-        .await;
-    assert!(res2)
-}
