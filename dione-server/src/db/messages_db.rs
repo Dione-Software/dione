@@ -7,6 +7,10 @@ use diesel::r2d2::{ConnectionManager, Pool};
 use tokio_diesel::{AsyncRunQueryDsl, AsyncResult};
 use std::fmt::{Debug, Formatter};
 
+#[cfg(test)]
+use std::path::Path;
+#[cfg(test)]
+use std::ops::Not;
 
 pub struct MessagesDb {
 	pool: Pool<ConnectionManager<SqliteConnection>>
