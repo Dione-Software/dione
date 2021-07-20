@@ -31,9 +31,9 @@ async fn main() {
 
 	tracing::subscriber::set_global_default(collector)
 		.expect("Something fucked up during setting up collector");
-	
+
 	let db = MessagesDb::establish_connection();
-	
+
 	let addr = config.network_con.message_storage.into();
 	let greeter = MessageStorer::new(db);
 

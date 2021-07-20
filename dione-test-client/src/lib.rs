@@ -22,6 +22,7 @@ pub async fn send_message(net_addr: &'static str, addr: &[u8]) -> bool {
         .await
         .unwrap();
 
+
     let content = b"hdheh";
 
     let request = tonic::Request::new(SaveMessageRequest {
