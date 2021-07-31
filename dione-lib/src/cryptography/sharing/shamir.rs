@@ -1,11 +1,11 @@
 use alloc::vec::Vec;
 
-use crate::cryptography::sharing::{SharingAlgorithm, SharingError};
+use crate::cryptography::sharing::{ThresholdSharingAlgorithm, SharingError};
 use sss_rs::wrapped_sharing::{Secret, share};
 
 pub struct ShamirSecretSharing;
 
-impl SharingAlgorithm for ShamirSecretSharing {
+impl ThresholdSharingAlgorithm for ShamirSecretSharing {
 	fn share(&self, data: &[u8], n: u8, t: u8) -> Result<Vec<Vec<u8>>, SharingError> {
 		let secret = Secret::InMemory(data.to_vec());
 		if t > n {
@@ -25,7 +25,7 @@ impl SharingAlgorithm for ShamirSecretSharing {
 #[cfg(test)]
 mod sss_test {
 	use crate::cryptography::sharing::shamir::ShamirSecretSharing;
-	use crate::cryptography::sharing::{SharingAlgorithm, SharingError};
+	use crate::cryptography::sharing::{ThresholdSharingAlgorithm, SharingError};
 
 	#[test]
 	fn success_reconstruction() {
