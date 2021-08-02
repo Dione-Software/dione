@@ -8,6 +8,12 @@ use crate::cryptography::ratchet::kdf_root::kdf_rk;
 use crate::cryptography::ratchet::kdf_chain::kdf_ck;
 use alloc::string::ToString;
 
+#[derive(Debug)]
+pub enum AddressRatchetError {
+	NoCks,
+	SkippedTooManyKeys,
+	NoCkr,
+}
 
 const MAX_SKIP: usize = 100;
 
@@ -78,12 +84,17 @@ impl AddressRatchet {
 		(ratchet, public_key)
 	}
 
-	pub fn ratchet_send(&mut self) -> (AddressHeader, [u8; 32]) {
-		let (cks, mk) = kdf_ck(&self.cks.unwrap());
+	pub fn ratchet_send(&mut self) -> Result<(AddressHeader, [u8; 32]), AddressRatchetError> {
+		let (cks, mk) = kdf_ck(&match self.cks {
+			None => {
+				return Err(AddressRatchetError::NoCks)
+			}
+			Some(d) => d,
+		});
 		self.cks = Some(cks);
 		let header = AddressHeader::new(&self.dhs, self.pn, self.ns);
 		self.ns += 1;
-		(header, mk)
+		Ok((header, mk))
 	}
 
 	pub fn try_skipped_message_keys(&mut self, header: &AddressHeader) -> bool {
@@ -96,9 +107,9 @@ impl AddressRatchet {
 	}
 
 	#[allow(dead_code)]
-	pub fn skip_message_keys(&mut self, until: usize) -> Result<(), &str> {
+	pub fn skip_message_keys(&mut self, until: usize) -> Result<(), AddressRatchetError> {
 		if self.nr + MAX_SKIP < until {
-			return Err("Skipped to many keys");
+			return Err(AddressRatchetError::SkippedTooManyKeys);
 		}
 		match self.ckr {
 			Some(d) => {
@@ -110,13 +121,13 @@ impl AddressRatchet {
 				}
 				Ok(())
 			},
-			None => { Err("No Ckr set") }
+			None => { Err(AddressRatchetError::NoCkr) }
 		}
 	}
 
-	pub fn next_address(&mut self) -> Result<[u8; 32], &'static str> {
+	pub fn next_address(&mut self) -> Result<[u8; 32], AddressRatchetError> {
 		if self.nr > MAX_SKIP {
-			return Err("Skipped to many keys");
+			return Err(AddressRatchetError::SkippedTooManyKeys);
 		}
 		match self.ckr {
 			Some(d) => {
@@ -126,7 +137,7 @@ impl AddressRatchet {
 				self.nr += 1;
 				Ok(mk)
 			},
-			None => { Err("No Ckr set") }
+			None => { Err(AddressRatchetError::NoCkr) }
 		}
 	}
 
@@ -149,9 +160,5 @@ impl AddressRatchet {
 							   &self.dhs.key_agreement(&self.dhr.unwrap()));
 		self.rk = rk;
 		self.cks = Some(cks);
-	}
-
-	pub(crate) fn give_header(&self) -> AddressHeader {
-		AddressHeader::new(&self.dhs, self.pn, self.ns)
 	}
 }

@@ -24,20 +24,19 @@ impl SharingAlgorithm for BlockSharing {
 		let content_len = data.len();
 		let mut block_lenghts: Vec<usize> = float_len_vals
 			.iter()
-			.map(|e|  e * &content_len_float)
+			.map(|e|  e * content_len_float)
 			.map(|e| e.round())
 			.map(|e| e as usize)
 			.collect();
 		let mut between_sum: usize = block_lenghts.iter().sum();
 		while between_sum != content_len {
+			let selection = block_lenghts.choose_mut(&mut OsRng).unwrap();
 			if between_sum > content_len {
-				let selection = block_lenghts.choose_mut(&mut OsRng).unwrap();
 				if selection == &mut 0 {
 					continue
 				}
 				*selection = selection.sub(&1);
 			} else {
-				let selection = block_lenghts.choose_mut(&mut OsRng).unwrap();
 				*selection = selection.add(&1);
 			}
 			between_sum = block_lenghts.iter().sum();
@@ -61,8 +60,7 @@ impl SharingAlgorithm for BlockSharing {
 			.map(|e| {
 				let (_, b) = data.split_at(e.0);
 				let (res, _) = b.split_at(e.1);
-				let res = res.to_vec();
-				res
+				res.to_vec()
 			})
 			.collect();
 

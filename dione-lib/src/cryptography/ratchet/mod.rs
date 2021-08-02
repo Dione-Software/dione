@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 use alloc::borrow::ToOwned;
 use core::borrow::Borrow;
 use crate::cryptography::sharing::shamir::ShamirSecretSharing;
-use crate::cryptography::sharing::{ThresholdSharingAlgorithm, SharingAlgorithm};
+use crate::cryptography::sharing::{ThresholdSharingAlgorithm, SharingAlgorithm, SharingError};
 use p256::PublicKey;
 use crate::cryptography::sharing::block::BlockSharing;
 use hashbrown::HashSet;
@@ -14,6 +14,16 @@ mod header;
 mod kdf_chain;
 mod kdf_root;
 mod address_ratchet;
+
+#[derive(Debug)]
+pub enum MagicRatchetError {
+	SerializationError,
+	DeserializationError,
+	ShamirSharingError(SharingError),
+	BlockSharingError(SharingError),
+	ShamirReconstructError(SharingError),
+	BlockReconstructError(SharingError),
+}
 
 struct DecryptedMessage {
 	pub address_headers: Vec<AddressHeader>,
@@ -84,7 +94,7 @@ impl From<ExDecryptedMessage> for DecryptedMessage {
 			.collect();
 		Self {
 			address_headers: headers,
-			message: d.message.clone(),
+			message: d.message,
 		}
 	}
 }
@@ -165,18 +175,28 @@ impl MagicRatchet {
 		)
 	}
 
-	pub fn send(&mut self, data: Vec<u8>, ad: &[u8]) -> Result<Vec<AddressShare>, &'static str> {
-		let addresses: Vec<[u8; 32]> = self.address_ratchets.iter_mut().map(|e| e.ratchet_send().1).collect();
-		let address_header = self.address_ratchets.iter().map(|e| e.give_header()).collect();
-		let decrypted_message = DecryptedMessage::new(address_header, data);
+	pub fn send(&mut self, data: &[u8], ad: &[u8]) -> Result<Vec<AddressShare>, MagicRatchetError> {
+		let (address_header, addresses): (Vec<AddressHeader>, Vec<[u8; 32]>) = self.address_ratchets.iter_mut().map(|e| e.ratchet_send().unwrap()).unzip();
+		let decrypted_message = DecryptedMessage::new(address_header, data.to_vec());
 		let message_bytes: Vec<u8> = decrypted_message.borrow().into();
 		let encrypted = self.enc_ratchet.ratchet_encrypt(&message_bytes, ad);
 		let shared_header = SharedHeader::from(&encrypted);
-		let shared_header_bytes = bincode::serialize(&shared_header).unwrap();
+		let shared_header_bytes = match bincode::serialize(&shared_header) {
+			Ok(d) => d,
+			Err(_) => {
+				return Err(MagicRatchetError::SerializationError)
+			}
+		};
 		let shamir = ShamirSecretSharing::default();
 		let block = crate::cryptography::sharing::block::BlockSharing::default();
-		let shares_shared_header = shamir.share(&shared_header_bytes, self.share_number as u8, self.share_number as u8).unwrap();
-		let shares_content = block.share(&encrypted.1, self.share_number).unwrap();
+		let shares_shared_header = match shamir.share(&shared_header_bytes, self.share_number as u8, self.share_number as u8) {
+			Ok(d) => d,
+			Err(e) => { return Err(MagicRatchetError::ShamirSharingError(e)) }
+		};
+		let shares_content = match block.share(&encrypted.1, self.share_number) {
+			Ok(d) => d,
+			Err(e) => { return Err(MagicRatchetError::BlockSharingError(e)) }
+		};
 		Ok(shares_content.iter().zip(shares_shared_header.iter())
 			.map(|e| Share::new(e.1.to_vec(), e.0.to_vec()))
 			.map(|e| bincode::serialize(&e).unwrap())
@@ -185,7 +205,7 @@ impl MagicRatchet {
 			.collect())
 	}
 
-	pub fn recv(&mut self, data: &Vec<AddressShare>, ad: &[u8]) -> Result<Vec<u8>, &'static str> {
+	pub fn recv(&mut self, data: &[AddressShare], ad: &[u8]) -> Result<Vec<u8>, MagicRatchetError> {
 		let d: Vec<([u8; 32], Share)> = data
 			.iter()
 			.map(|e| (e.0, bincode::deserialize(&e.1).unwrap()))
@@ -195,11 +215,26 @@ impl MagicRatchet {
 		let header_shares: Vec<Vec<u8>> = d.iter().map(|e| e.1.header.clone()).collect();
 		let shamir = ShamirSecretSharing::default();
 		let block = BlockSharing::default();
-		let shared_header_bytes = shamir.reconstruct(&header_shares).unwrap();
-		let shared_header: SharedHeader = bincode::deserialize(&shared_header_bytes).unwrap();
+		let shared_header_bytes = match shamir.reconstruct(&header_shares) {
+			Ok(d) => d,
+			Err(e) => {
+				return Err(MagicRatchetError::ShamirReconstructError(e))
+			}
+		};
+		let shared_header: SharedHeader = match bincode::deserialize(&shared_header_bytes) {
+			Ok(d) => d,
+			Err(_) => {
+				return Err(MagicRatchetError::DeserializationError)
+			}
+		};
 
 		let shares_content: Vec<Vec<u8>> = d.iter().map(|e| e.1.content.clone()).collect();
-		let encrypted_content = block.reconstruct(&shares_content).unwrap();
+		let encrypted_content = match block.reconstruct(&shares_content) {
+			Ok(d) => d,
+			Err(e) => {
+				return Err(MagicRatchetError::BlockReconstructError(e))
+			}
+		};
 
 		let (decrypted, _header) = self.enc_ratchet.ratchet_decrypt_w_header(&(shared_header.header, shared_header.header_nonce),
 		&encrypted_content,
@@ -248,7 +283,7 @@ mod magic_ratchet_test {
 		let number_shares = 3;
 		let (mut magic_ratchet_bob, enc_pk, address_pks) = MagicRatchet::init_bob(enc_rk, shka, snhkb, number_shares, address_rks.clone());
 		let mut magic_ratchet_alice = MagicRatchet::init_alice(enc_rk, enc_pk, shka, snhkb, number_shares, address_rks, address_pks);
-		let encrypted = magic_ratchet_alice.send(data.clone(), b"").unwrap();
+		let encrypted = magic_ratchet_alice.send(&data, b"").unwrap();
 		let decrypted = magic_ratchet_bob.recv(&encrypted, b"").unwrap();
 		assert_eq!(data, decrypted)
 	}
@@ -262,10 +297,10 @@ mod magic_ratchet_test {
 		let number_shares = 3;
 		let (mut magic_ratchet_bob, enc_pk, address_pks) = MagicRatchet::init_bob(enc_rk, shka, snhkb, number_shares, address_rks.clone());
 		let mut magic_ratchet_alice = MagicRatchet::init_alice(enc_rk, enc_pk, shka, snhkb, number_shares, address_rks, address_pks);
-		let encrypted = magic_ratchet_alice.send(b"".to_vec(), b"").unwrap();
+		let encrypted = magic_ratchet_alice.send(b"", b"").unwrap();
 		let decrypted = magic_ratchet_bob.recv(&encrypted, b"").unwrap();
 		assert_eq!(b"".to_vec(), decrypted);
-		let send_addresses: Vec<[u8; 32]> = magic_ratchet_alice.send(b"".to_vec(), b"").unwrap().iter().map(|e| e.0).collect();
+		let send_addresses: Vec<[u8; 32]> = magic_ratchet_alice.send(b"", b"").unwrap().iter().map(|e| e.0).collect();
 		magic_ratchet_bob.next_addresses();
 		let recv_addresses = magic_ratchet_bob.next_addresses();
 		assert_eq!(send_addresses, recv_addresses);
@@ -280,11 +315,11 @@ mod magic_ratchet_test {
 		let number_shares = 3;
 		let (mut magic_ratchet_bob, enc_pk, address_pks) = MagicRatchet::init_bob(enc_rk, shka, snhkb, number_shares, address_rks.clone());
 		let mut magic_ratchet_alice = MagicRatchet::init_alice(enc_rk, enc_pk, shka, snhkb, number_shares, address_rks, address_pks);
-		let encrypted = magic_ratchet_alice.send(b"".to_vec(), b"").unwrap();
+		let encrypted = magic_ratchet_alice.send(b"", b"").unwrap();
 		let decrypted = magic_ratchet_bob.recv(&encrypted, b"").unwrap();
 		assert_eq!(b"".to_vec(), decrypted);
 		let data = b"This is data".to_vec();
-		let encrypted = magic_ratchet_bob.send(data.clone(), b"ad").unwrap();
+		let encrypted = magic_ratchet_bob.send(&data, b"ad").unwrap();
 		let decrypted = magic_ratchet_alice.recv(&encrypted, b"ad").unwrap();
 		assert_eq!(decrypted, data)
 	}

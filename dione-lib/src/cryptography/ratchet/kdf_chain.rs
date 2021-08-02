@@ -20,6 +20,7 @@ pub fn kdf_ck(ck: &[u8; 32]) -> ([u8; 32], [u8; 32]) {
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 pub fn gen_mk() -> [u8; 32] {
 	let ck = gen_ck();
 	let (_, mk) = kdf_ck(&ck);

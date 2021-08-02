@@ -115,7 +115,7 @@ impl BobKeyBundle {
 			ik: self.ik.strip(),
 			spk: self.spk.strip(),
 			opk: self.opk.strip(),
-			signature: self.signature.clone(),
+			signature: self.signature,
 		}
 	}
 
