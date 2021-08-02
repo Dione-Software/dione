@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 use crate::cryptography::sharing::{ThresholdSharingAlgorithm, SharingError};
 use sss_rs::wrapped_sharing::{Secret, share};
 
+#[derive(Default)]
 pub struct ShamirSecretSharing;
 
 impl ThresholdSharingAlgorithm for ShamirSecretSharing {

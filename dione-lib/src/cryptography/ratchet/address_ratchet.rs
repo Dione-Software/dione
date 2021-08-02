@@ -6,6 +6,12 @@ use zeroize::Zeroize;
 use rand_core::OsRng;
 use crate::cryptography::ratchet::kdf_root::kdf_rk;
 use crate::cryptography::ratchet::kdf_chain::kdf_ck;
+use alloc::string::ToString;
+
+
+const MAX_SKIP: usize = 100;
+
+pub type AddressHeader = crate::cryptography::ratchet::header::Header;
 
 pub struct AddressRatchet {
 	dhs: DhKeyPair,
@@ -72,14 +78,80 @@ impl AddressRatchet {
 		(ratchet, public_key)
 	}
 
-	pub fn get_address_send(&mut self) -> [u8; 32] {
+	pub fn ratchet_send(&mut self) -> (AddressHeader, [u8; 32]) {
 		let (cks, mk) = kdf_ck(&self.cks.unwrap());
 		self.cks = Some(cks);
+		let header = AddressHeader::new(&self.dhs, self.pn, self.ns);
 		self.ns += 1;
-		mk
+		(header, mk)
 	}
 
-	pub fn get_address_recv(&mut self) -> [u8; 32] {
-		todo!()
+	pub fn try_skipped_message_keys(&mut self, header: &AddressHeader) -> bool {
+		if self.mkskipped.contains_key(&(header.ex_public_key_bytes(), header.n)) {
+			self.mkskipped.remove(&(header.ex_public_key_bytes(), header.n)).unwrap();
+			true
+		} else {
+			false
+		}
+	}
+
+	#[allow(dead_code)]
+	pub fn skip_message_keys(&mut self, until: usize) -> Result<(), &str> {
+		if self.nr + MAX_SKIP < until {
+			return Err("Skipped to many keys");
+		}
+		match self.ckr {
+			Some(d) => {
+				while self.nr < until {
+					let (ckr, mk) = kdf_ck(&d);
+					self.ckr = Some(ckr);
+					self.mkskipped.insert((self.dhr.unwrap().to_string().as_bytes().to_vec(), self.nr), mk);
+					self.nr += 1
+				}
+				Ok(())
+			},
+			None => { Err("No Ckr set") }
+		}
+	}
+
+	pub fn next_address(&mut self) -> Result<[u8; 32], &'static str> {
+		if self.nr > MAX_SKIP {
+			return Err("Skipped to many keys");
+		}
+		match self.ckr {
+			Some(d) => {
+				let (ckr, mk) = kdf_ck(&d);
+				self.ckr = Some(ckr);
+				self.mkskipped.insert((self.dhr.unwrap().to_string().as_bytes().to_vec(), self.nr), mk);
+				self.nr += 1;
+				Ok(mk)
+			},
+			None => { Err("No Ckr set") }
+		}
+	}
+
+	pub fn proccess_recv(&mut self, header: &AddressHeader) {
+		let _ = self.try_skipped_message_keys(header);
+		self.dhratchet(header);
+	}
+
+	pub fn dhratchet(&mut self, header: &AddressHeader) {
+		self.pn = self.ns;
+		self.ns = 0;
+		self.nr = 0;
+		self.dhr = Some(header.public_key);
+		let (rk, ckr) = kdf_rk(&self.rk,
+							   &self.dhs.key_agreement(&self.dhr.unwrap()));
+		self.rk = rk;
+		self.ckr = Some(ckr);
+		self.dhs = DhKeyPair::new();
+		let (rk, cks) = kdf_rk(&self.rk,
+							   &self.dhs.key_agreement(&self.dhr.unwrap()));
+		self.rk = rk;
+		self.cks = Some(cks);
+	}
+
+	pub(crate) fn give_header(&self) -> AddressHeader {
+		AddressHeader::new(&self.dhs, self.pn, self.ns)
 	}
 }
