@@ -1,6 +1,5 @@
 use std::env;
 use diesel::*;
-use dotenv::dotenv;
 use crate::db::models::{Message, NewMessage};
 use tracing::*;
 use crate::db::schema::messages;

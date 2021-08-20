@@ -18,6 +18,10 @@ serde = { version = "1", features = ["serde_derive"] }
 toml = "0.5"
 diesel = { version = "1.4.4", features = ["sqlite"] }
 dotenv = "0.15.0"
+libp2p = { version = "0.39.1", features = ["tcp-tokio"] }
+tokio-stream = "0.1.7"
+void = "1.0.2"
+structopt = "0.3.22"
 
 [build-dependencies]
 tonic-build = "0.5"
