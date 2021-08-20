@@ -1,6 +1,6 @@
 use libp2p::{NetworkBehaviour, Multiaddr, PeerId, Swarm};
 use libp2p::mdns::{Mdns, MdnsEvent};
-use libp2p::kad::{Kademlia, KademliaEvent, QueryId, QueryResult, GetProvidersOk, GetRecordOk, Quorum, Record};
+use libp2p::kad::{Kademlia, KademliaEvent, QueryId, QueryResult, GetProvidersOk, GetRecordOk, Quorum, Record, GetClosestPeersOk};
 use libp2p::kad::store::MemoryStore;
 use std::error::Error;
 use tokio::sync::{oneshot, mpsc};
@@ -37,7 +37,7 @@ pub async fn new() -> Result<(Client, EventLoop), Box<dyn Error>> {
 		))
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Client {
 	sender: mpsc::Sender<Command>,
 }
@@ -108,6 +108,14 @@ impl Client {
 		receiver.await.expect("Sender not to be dropped")
 	}
 
+	pub async fn get_closest_peer(&mut self, addr: Vec<u8>) -> Result<PeerId, Box<dyn Error + Send>> {
+		let (sender, receiver) = oneshot::channel();
+		self.sender
+			.send(Command::GetClosestPeer { addr, sender })
+			.await
+			.expect("Command receiver not to be dropped.");
+		receiver.await.expect("Sender not to be dropped")
+	}
 }
 
 #[derive(NetworkBehaviour)]
@@ -162,6 +170,10 @@ enum Command {
 		addr_type: crate::message_storage::ServerAddressType,
 		addr: String,
 		sender: oneshot::Sender<()>,
+	},
+	GetClosestPeer {
+		addr: ShareAddress,
+		sender: oneshot::Sender<Result<PeerId, Box<dyn Error + Send>>>,
 	}
 }
 
@@ -180,6 +192,7 @@ pub struct EventLoop {
 	pending_get_providers: HashMap<QueryId, oneshot::Sender<HashSet<PeerId>>>,
 	pending_put_clear_addr: HashMap<QueryId, oneshot::Sender<()>>,
 	pending_get_clear_addr: HashMap<QueryId, oneshot::Sender<Result<ServerAddrBundle, Box<bincode::ErrorKind>>>>,
+	pending_get_closest_peer: HashMap<QueryId, oneshot::Sender<Result<PeerId, Box<dyn Error + Send>>>>,
 }
 
 impl EventLoop {
@@ -195,6 +208,7 @@ impl EventLoop {
 			pending_get_providers: Default::default(),
 			pending_get_clear_addr: Default::default(),
 			pending_put_clear_addr: Default::default(),
+			pending_get_closest_peer: Default::default(),
 		}
 	}
 
@@ -256,6 +270,18 @@ impl EventLoop {
 					.remove(&id)
 					.expect("Completed query to previously pending")
 					.send(bundle);
+			}
+			SwarmEvent::Behaviour(ComposedEvent::Kademlia(
+			KademliaEvent::OutboundQueryCompleted {
+				id,
+				result: QueryResult::GetClosestPeers(Ok(GetClosestPeersOk { peers, .. })), ..
+			})) => {
+				let peer_id = peers.get(0).unwrap().to_owned();
+				let _ = self
+					.pending_get_closest_peer
+					.remove(&id)
+					.expect("Completed query to previously pending")
+					.send(Ok(peer_id));
 			}
 			SwarmEvent::Behaviour(ComposedEvent::Kademlia( .. )) => {}
 			SwarmEvent::Behaviour(ComposedEvent::Mdns(MdnsEvent::Discovered(list))) => {
@@ -370,6 +396,14 @@ impl EventLoop {
 					.kademlia
 					.put_record(Record::new(Key::from(peer_id_bytes), data), Quorum::Majority).unwrap();
 				self.pending_put_clear_addr.insert(query_id, sender);
+			}
+			Command::GetClosestPeer { addr, sender } => {
+				let query_id = self
+					.swarm
+					.behaviour_mut()
+					.kademlia
+					.get_closest_peers(addr);
+				self.pending_get_closest_peer.insert(query_id, sender);
 			}
 		}
 	}

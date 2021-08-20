@@ -73,6 +73,10 @@ async fn main() {
 		CliArgument::GetAddr { peer_id } => {
 			let bundle = client.get_clear_addr(PeerId::from_str(&peer_id).unwrap()).await.unwrap();
 			println!("Bundle => {:?}", bundle);
+		},
+		CliArgument::GetClosest { addr } => {
+			let peer_id = client.get_closest_peer(addr.into_bytes()).await.unwrap();
+			println!("Closest peer => {:?}", peer_id);
 		}
 	}
 	loop {
@@ -110,6 +114,10 @@ enum CliArgument {
 	GetAddr {
 		#[structopt(long)]
 		peer_id: String,
+	},
+	GetClosest {
+		#[structopt(long)]
+		addr: String,
 	}
 }
 
