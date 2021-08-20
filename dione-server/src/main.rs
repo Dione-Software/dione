@@ -1,11 +1,15 @@
 #[macro_use]
 extern crate diesel;
 
+mod config;
+mod db;
+mod tonic_responder;
+
 use tonic::transport::Server;
 use tracing::Level;
 
 use crate::config::conf_ex::Conf;
-use crate::db::messages_db::Messages;
+use crate::db::messages_db::MessagesDb;
 use prost::alloc::str::FromStr;
 use crate::tonic_responder::save_message::MessageStorer;
 use structopt::StructOpt;
@@ -13,6 +17,7 @@ use libp2p::{Multiaddr, PeerId};
 use std::path::PathBuf;
 use libp2p::multiaddr::Protocol;
 use tokio::time::{sleep, Duration};
+use crate::tonic_responder::message_storer::MessageStorer;
 
 pub(crate) mod message_storage {
 	include!(concat!(env!("OUT_DIR"), "/messagestorage.rs"));
@@ -100,7 +105,9 @@ enum CliArgument {
 /*
 #[tokio::main]
 async fn main() {
-	dotenv::from_path("dione-server/.env");
+	let config: Conf = crate::config::conf_ex::Conf::from_str("dione-server/config/dev_config.toml").unwrap();
+	dotenv::from_path("dione-server/.env")
+		.expect("Error opening config file");
 
 	let (mut client, mut event_loop) = network::new().await.unwrap();
 
@@ -116,11 +123,11 @@ async fn main() {
 
 	tracing::subscriber::set_global_default(collector)
 		.expect("Something fucked up during setting up collector");
-	
-	let db = Messages::establish_connection();
-	
+
+	let db = MessagesDb::establish_connection();
+
 	let addr = config.network_con.message_storage.into();
-	let greeter = MessageStorer::default();
+	let greeter = MessageStorer::new(db);
 
 	println!("Storer listening on {}", addr);
 

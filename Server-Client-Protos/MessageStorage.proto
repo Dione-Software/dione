@@ -7,6 +7,22 @@ enum HashType {
   LZ4 = 3;
 }
 
+enum ServerAddressType {
+  ONION = 1;
+  CLEAR = 2;
+  IPV4 = 3;
+  IPV6 = 4;
+}
+
+message ServerLocRequest {
+  required bytes addr = 1;
+}
+
+message ServerLocResponse {
+  required ServerAddressType addrtype = 1;
+  required string addr = 2;
+}
+
 message SaveMessageRequest {
   required bytes addr = 1;
   required bytes content = 2;
@@ -18,6 +34,20 @@ message SaveMessageResponse {
   optional HashType hash_type = 3;
 }
 
+message GetMessageRequest {
+  required bytes addr = 1;
+}
+
+message GetMessageResponse {
+  required bytes addr = 1;
+  required bytes content = 2;
+}
+
 service MessageStorage {
   rpc SaveMessage (SaveMessageRequest) returns (SaveMessageResponse);
+  rpc GetMessage (GetMessageRequest) returns (GetMessageResponse);
+}
+
+service Location {
+  rpc LookUp (ServerLocRequest) returns (ServerLocResponse);
 }

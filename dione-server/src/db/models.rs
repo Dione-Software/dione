@@ -9,8 +9,7 @@ pub struct Message {
 
 #[derive(Insertable)]
 #[table_name="messages"]
-pub struct NewMessage<'a> {
-	pub id: &'a i32,
-	pub content: &'a Vec<u8>,
-	pub address: &'a Vec<u8>
+pub struct NewMessage {
+	pub content: Vec<u8>,
+	pub address: Vec<u8>
 }
