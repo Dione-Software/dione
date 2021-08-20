@@ -1,6 +1,6 @@
 use libp2p::{NetworkBehaviour, Multiaddr, PeerId, Swarm};
 use libp2p::mdns::{Mdns, MdnsEvent};
-use libp2p::kad::{Kademlia, KademliaEvent, QueryId, QueryResult, GetProvidersOk, GetRecordOk, Quorum};
+use libp2p::kad::{Kademlia, KademliaEvent, QueryId, QueryResult, GetProvidersOk, GetRecordOk, Quorum, Record};
 use libp2p::kad::store::MemoryStore;
 use std::error::Error;
 use tokio::sync::{oneshot, mpsc};
@@ -10,7 +10,7 @@ use libp2p::core::either::EitherError;
 use libp2p::multiaddr::Protocol;
 use libp2p::kad::record::Key;
 use tokio_stream::StreamExt;
-use std::str::Utf8Error;
+use serde::{Serialize, Deserialize};
 
 type ShareAddress = Vec<u8>;
 
@@ -90,13 +90,22 @@ impl Client {
 		receiver.await.expect("Sender not to be dropped.")
 	}
 
-	pub async fn get_clear_addr(&mut self, peer_id: PeerId) -> Result<String, Box<Utf8Error>> {
+	pub async fn get_clear_addr(&mut self, peer_id: PeerId) -> Result<ServerAddrBundle, Box<bincode::ErrorKind>> {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
 			.send(Command::GetClearAddr { peer_id, sender })
 			.await
 			.expect("Command receiver not to be dropped.");
 		receiver.await.expect("Sender not to be dropped.")
+	}
+
+	pub async fn put_clear_addr(&mut self, addr_type: crate::message_storage::ServerAddressType, addr: String) {
+		let (sender, receiver) = oneshot::channel();
+		self.sender
+			.send(Command::PutClearAddr { addr_type, addr, sender })
+			.await
+			.expect("Command receiver not to be dropped.");
+		receiver.await.expect("Sender not to be dropped")
 	}
 
 }
@@ -147,8 +156,20 @@ enum Command {
 	},
 	GetClearAddr {
 		peer_id: PeerId,
-		sender: oneshot::Sender<Result<String, Box<Utf8Error>>>,
+		sender: oneshot::Sender<Result<ServerAddrBundle, Box<bincode::ErrorKind>>>,
+	},
+	PutClearAddr {
+		addr_type: crate::message_storage::ServerAddressType,
+		addr: String,
+		sender: oneshot::Sender<()>,
 	}
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ServerAddrBundle {
+	peer_id: Vec<u8>,
+	addr: String,
+	addr_type: crate::message_storage::ServerAddressType,
 }
 
 pub struct EventLoop {
@@ -157,7 +178,8 @@ pub struct EventLoop {
 	pending_dial: HashMap<PeerId, oneshot::Sender<Result<(), Box<dyn Error + Send>>>>,
 	pending_start_providing: HashMap<QueryId, oneshot::Sender<()>>,
 	pending_get_providers: HashMap<QueryId, oneshot::Sender<HashSet<PeerId>>>,
-	pending_get_clear_addr: HashMap<QueryId, oneshot::Sender<Result<String, Box<Utf8Error>>>>,
+	pending_put_clear_addr: HashMap<QueryId, oneshot::Sender<()>>,
+	pending_get_clear_addr: HashMap<QueryId, oneshot::Sender<Result<ServerAddrBundle, Box<bincode::ErrorKind>>>>,
 }
 
 impl EventLoop {
@@ -172,6 +194,7 @@ impl EventLoop {
 			pending_start_providing: Default::default(),
 			pending_get_providers: Default::default(),
 			pending_get_clear_addr: Default::default(),
+			pending_put_clear_addr: Default::default(),
 		}
 	}
 
@@ -227,15 +250,12 @@ impl EventLoop {
 				result: QueryResult::GetRecord(Ok(GetRecordOk{ records, .. })), ..
 			})) => {
 				let data = records.get(0).unwrap().record.value.clone();
-				let address = match String::from_utf8(data) {
-					Ok(d) => Ok(d),
-					Err(e) => Err(Box::new(e.utf8_error()))
-				};
+				let bundle: Result<ServerAddrBundle, bincode::Error> = bincode::deserialize(&data);
 				let _ = self
 					.pending_get_clear_addr
 					.remove(&id)
 					.expect("Completed query to previously pending")
-					.send(address);
+					.send(bundle);
 			}
 			SwarmEvent::Behaviour(ComposedEvent::Kademlia( .. )) => {}
 			SwarmEvent::Behaviour(ComposedEvent::Mdns(MdnsEvent::Discovered(list))) => {
@@ -275,7 +295,8 @@ impl EventLoop {
 						let _ = sender.send(Err(Box::new(error)));
 					}
 				}
-			}
+			},
+			SwarmEvent::ConnectionClosed { .. } => {},
 			e => panic!("{:?}", e),
 		}
 	}
@@ -334,6 +355,21 @@ impl EventLoop {
 					.kademlia
 					.get_record(&Key::from(peer_id.to_bytes()), Quorum::One);
 				self.pending_get_clear_addr.insert(query_id, sender);
+			}
+			Command::PutClearAddr {addr_type, addr, sender} => {
+				let peer_id_bytes = self.swarm.local_peer_id().to_bytes();
+				let bundle = ServerAddrBundle {
+					peer_id: peer_id_bytes.clone(),
+					addr,
+					addr_type,
+				};
+				let data = bincode::serialize(&bundle).unwrap();
+				let query_id = self
+					.swarm
+					.behaviour_mut()
+					.kademlia
+					.put_record(Record::new(Key::from(peer_id_bytes), data), Quorum::Majority).unwrap();
+				self.pending_put_clear_addr.insert(query_id, sender);
 			}
 		}
 	}

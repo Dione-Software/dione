@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use libp2p::multiaddr::Protocol;
 use tokio::time::{sleep, Duration};
 use crate::tonic_responder::message_storer::MessageStorer;
+use crate::message_storage::ServerAddressType;
 
 pub(crate) mod message_storage {
 	include!(concat!(env!("OUT_DIR"), "/messagestorage.rs"));
@@ -65,6 +66,13 @@ async fn main() {
 			}
 
 			println!("Providers => {:?}", providers);
+		},
+		CliArgument::PutAddr { addr } => {
+			client.put_clear_addr(ServerAddressType::Clear, addr).await;
+		},
+		CliArgument::GetAddr { peer_id } => {
+			let bundle = client.get_clear_addr(PeerId::from_str(&peer_id).unwrap()).await.unwrap();
+			println!("Bundle => {:?}", bundle);
 		}
 	}
 	loop {
@@ -94,6 +102,14 @@ enum CliArgument {
 	Get {
 		#[structopt(long)]
 		addr: String,
+	},
+	PutAddr {
+		#[structopt(long)]
+		addr: String,
+	},
+	GetAddr {
+		#[structopt(long)]
+		peer_id: String,
 	}
 }
 
