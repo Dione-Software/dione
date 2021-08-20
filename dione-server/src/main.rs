@@ -1,17 +1,12 @@
 #[macro_use]
 extern crate diesel;
 
-mod config;
-mod db;
-mod tonic_responder;
-
 use tonic::transport::Server;
 use tracing::Level;
 
 use crate::config::conf_ex::Conf;
 use crate::db::messages_db::MessagesDb;
 use prost::alloc::str::FromStr;
-use crate::tonic_responder::save_message::MessageStorer;
 use structopt::StructOpt;
 use libp2p::{Multiaddr, PeerId};
 use std::path::PathBuf;
