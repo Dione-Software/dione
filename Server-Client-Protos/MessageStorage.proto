@@ -23,6 +23,10 @@ message ServerLocResponse {
   required string addr = 2;
 }
 
+message MessageLocResponse {
+  repeated ServerLocResponse addrs = 1;
+}
+
 message SaveMessageRequest {
   required bytes addr = 1;
   required bytes content = 2;
@@ -50,4 +54,5 @@ service MessageStorage {
 
 service Location {
   rpc LookUp (ServerLocRequest) returns (ServerLocResponse);
+  rpc MessageLookUp (ServerLocRequest) returns (MessageLocResponse);
 }

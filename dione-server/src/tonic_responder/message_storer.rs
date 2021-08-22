@@ -4,16 +4,19 @@ use tracing::*;
 use crate::message_storage::{SaveMessageRequest, SaveMessageResponse, GetMessageResponse, GetMessageRequest};
 use crate::message_storage::message_storage_server::MessageStorage;
 use crate::db::messages_db::MessagesDb;
+use crate::network::Client;
 
 #[derive(Debug)]
 pub struct MessageStorer {
 	db_conn: MessagesDb,
+	client: Client,
 }
 
 impl MessageStorer {
-	pub(crate) fn new(conn: MessagesDb) -> Self {
+	pub(crate) fn new(conn: MessagesDb, client: Client) -> Self {
 		Self {
-			db_conn: conn
+			db_conn: conn,
+			client
 		}
 	}
 }
@@ -28,8 +31,20 @@ impl MessageStorage for MessageStorer {
 		println!("Got a request from {:?}", request.remote_addr());
 		event!(Level::INFO, "Processing Request");
 
+		let client_clone = self.client.clone();
+
+
 		let request_data = request.into_inner();
 
+		let addr = request_data.addr.clone();
+
+		let dht = tokio::spawn(async move {
+			event!(Level::DEBUG, "Propagating to DHT");
+
+			client_clone.start_providing(addr).await;
+
+			event!(Level::DEBUG, "Propagated to DHT");
+		});
 
 		let (hash_type, hash) = request_data.hash_content();
 
@@ -46,6 +61,8 @@ impl MessageStorage for MessageStorer {
 		self.db_conn.save_message(request_data.content, request_data.addr).await;
 
 		event!(Level::DEBUG, "Saved to DB");
+
+		dht.await.unwrap();
 
 		Ok(Response::new(reply))
 	}

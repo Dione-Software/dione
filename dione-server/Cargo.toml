@@ -25,6 +25,9 @@ structopt = "0.3.22"
 tokio-diesel = { git = "https://github.com/mehcode/tokio-diesel.git" }
 diesel_migrations = "1.4.0"
 bincode = "1.3.3"
+opentelemetry = { version = "0.16", default-features = false, features = ["trace"] }
+opentelemetry-jaeger = "0.15"
+tracing-opentelemetry = "0.15.0"
 
 [build-dependencies]
 tonic-build = "0.5.1"

@@ -1,3 +1,5 @@
+use tracing::*;
+
 use libp2p::{NetworkBehaviour, Multiaddr, PeerId, Swarm};
 use libp2p::mdns::{Mdns, MdnsEvent};
 use libp2p::kad::{Kademlia, KademliaEvent, QueryId, QueryResult, GetProvidersOk, GetRecordOk, Quorum, Record, GetClosestPeersOk, PutRecordOk};
@@ -43,6 +45,7 @@ pub struct Client {
 }
 
 impl Client {
+	#[instrument]
 	pub async fn start_listening(
 		&mut self,
 		addr: Multiaddr,
@@ -55,6 +58,7 @@ impl Client {
 		receiver.await.expect("Sender not to be dropped")
 	}
 
+	#[instrument]
 	pub async fn dial(
 		&mut self,
 		peer_id: PeerId,
@@ -72,6 +76,7 @@ impl Client {
 		receiver.await.expect("Sender not to be dropped")
 	}
 
+	#[instrument]
 	pub async fn start_providing(&self, share_addr: ShareAddress) {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
@@ -81,6 +86,7 @@ impl Client {
 		receiver.await.expect("Sender not to be dropped.")
 	}
 
+	#[instrument]
 	pub async fn get_providers(&self, share_addr: ShareAddress) -> HashSet<PeerId> {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
@@ -90,6 +96,7 @@ impl Client {
 		receiver.await.expect("Sender not to be dropped.")
 	}
 
+	#[instrument]
 	pub async fn get_clear_addr(&self, peer_id: PeerId) -> Result<ServerAddrBundle, Box<bincode::ErrorKind>> {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
@@ -99,6 +106,7 @@ impl Client {
 		receiver.await.expect("Sender not to be dropped.")
 	}
 
+	#[instrument]
 	pub async fn put_clear_addr(&self, addr_type: crate::message_storage::ServerAddressType, addr: String) {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
@@ -109,6 +117,7 @@ impl Client {
 		receiver.await.expect("Sender not to be dropped")
 	}
 
+	#[instrument]
 	pub async fn get_closest_peer(&self, addr: Vec<u8>) -> Result<PeerId, Box<dyn Error + Send>> {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
@@ -175,7 +184,7 @@ enum Command {
 	GetClosestPeer {
 		addr: ShareAddress,
 		sender: oneshot::Sender<Result<PeerId, Box<dyn Error + Send>>>,
-	}
+	},
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -184,6 +193,7 @@ pub struct ServerAddrBundle {
 	pub addr: String,
 	pub addr_type: crate::message_storage::ServerAddressType,
 }
+
 
 pub struct EventLoop {
 	swarm: Swarm<ComposedBehaviour>,
@@ -227,6 +237,7 @@ impl EventLoop {
 		}
 	}
 
+	#[instrument(skip(self))]
 	async fn handle_event(
 		&mut self,
 		event: SwarmEvent<
@@ -340,6 +351,7 @@ impl EventLoop {
 		}
 	}
 
+	#[instrument(skip(self))]
 	async fn handle_command(&mut self, command: Command) {
 		match command {
 			Command::StartListening { addr, sender } => {
