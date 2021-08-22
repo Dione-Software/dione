@@ -1,6 +1,8 @@
+use tracing::*;
+
 use libp2p::{NetworkBehaviour, Multiaddr, PeerId, Swarm};
 use libp2p::mdns::{Mdns, MdnsEvent};
-use libp2p::kad::{Kademlia, KademliaEvent, QueryId, QueryResult, GetProvidersOk, GetRecordOk, Quorum};
+use libp2p::kad::{Kademlia, KademliaEvent, QueryId, QueryResult, GetProvidersOk, GetRecordOk, Quorum, Record, GetClosestPeersOk, PutRecordOk};
 use libp2p::kad::store::MemoryStore;
 use std::error::Error;
 use tokio::sync::{oneshot, mpsc};
@@ -10,7 +12,7 @@ use libp2p::core::either::EitherError;
 use libp2p::multiaddr::Protocol;
 use libp2p::kad::record::Key;
 use tokio_stream::StreamExt;
-use std::str::Utf8Error;
+use serde::{Serialize, Deserialize};
 
 type ShareAddress = Vec<u8>;
 
@@ -37,12 +39,13 @@ pub async fn new() -> Result<(Client, EventLoop), Box<dyn Error>> {
 		))
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Client {
 	sender: mpsc::Sender<Command>,
 }
 
 impl Client {
+	#[instrument]
 	pub async fn start_listening(
 		&mut self,
 		addr: Multiaddr,
@@ -55,6 +58,7 @@ impl Client {
 		receiver.await.expect("Sender not to be dropped")
 	}
 
+	#[instrument]
 	pub async fn dial(
 		&mut self,
 		peer_id: PeerId,
@@ -72,7 +76,8 @@ impl Client {
 		receiver.await.expect("Sender not to be dropped")
 	}
 
-	pub async fn start_providing(&mut self, share_addr: ShareAddress) {
+	#[instrument]
+	pub async fn start_providing(&self, share_addr: ShareAddress) {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
 			.send(Command::StartProviding { share_addr, sender })
@@ -81,7 +86,16 @@ impl Client {
 		receiver.await.expect("Sender not to be dropped.")
 	}
 
-	pub async fn get_providers(&mut self, share_addr: ShareAddress) -> HashSet<PeerId> {
+	#[instrument]
+	pub async fn stop_providing(&self, share_addr: ShareAddress) {
+		self.sender
+			.send(Command::StopProviding { share_addr })
+			.await
+			.expect("Receiver not to be dropped");
+	}
+
+	#[instrument]
+	pub async fn get_providers(&self, share_addr: ShareAddress) -> HashSet<PeerId> {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
 			.send(Command::GetProviders { share_addr, sender })
@@ -90,7 +104,8 @@ impl Client {
 		receiver.await.expect("Sender not to be dropped.")
 	}
 
-	pub async fn get_clear_addr(&mut self, peer_id: PeerId) -> Result<String, Box<Utf8Error>> {
+	#[instrument]
+	pub async fn get_clear_addr(&self, peer_id: PeerId) -> Result<ServerAddrBundle, Box<bincode::ErrorKind>> {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
 			.send(Command::GetClearAddr { peer_id, sender })
@@ -99,6 +114,26 @@ impl Client {
 		receiver.await.expect("Sender not to be dropped.")
 	}
 
+	#[instrument]
+	pub async fn put_clear_addr(&self, addr_type: crate::message_storage::ServerAddressType, addr: String) {
+		let (sender, receiver) = oneshot::channel();
+		self.sender
+			.send(Command::PutClearAddr { addr_type, addr, sender })
+			.await
+			.expect("Command receiver not to be dropped.");
+		println!("Waiting for clear addr");
+		receiver.await.expect("Sender not to be dropped")
+	}
+
+	#[instrument]
+	pub async fn get_closest_peer(&self, addr: Vec<u8>) -> Result<PeerId, Box<dyn Error + Send>> {
+		let (sender, receiver) = oneshot::channel();
+		self.sender
+			.send(Command::GetClosestPeer { addr, sender })
+			.await
+			.expect("Command receiver not to be dropped.");
+		receiver.await.expect("Sender not to be dropped")
+	}
 }
 
 #[derive(NetworkBehaviour)]
@@ -141,15 +176,35 @@ enum Command {
 		share_addr: ShareAddress,
 		sender: oneshot::Sender<()>,
 	},
+	StopProviding {
+		share_addr: ShareAddress,
+	},
 	GetProviders {
 		share_addr: ShareAddress,
 		sender: oneshot::Sender<HashSet<PeerId>>,
 	},
 	GetClearAddr {
 		peer_id: PeerId,
-		sender: oneshot::Sender<Result<String, Box<Utf8Error>>>,
-	}
+		sender: oneshot::Sender<Result<ServerAddrBundle, Box<bincode::ErrorKind>>>,
+	},
+	PutClearAddr {
+		addr_type: crate::message_storage::ServerAddressType,
+		addr: String,
+		sender: oneshot::Sender<()>,
+	},
+	GetClosestPeer {
+		addr: ShareAddress,
+		sender: oneshot::Sender<Result<PeerId, Box<dyn Error + Send>>>,
+	},
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ServerAddrBundle {
+	peer_id: Vec<u8>,
+	pub addr: String,
+	pub addr_type: crate::message_storage::ServerAddressType,
+}
+
 
 pub struct EventLoop {
 	swarm: Swarm<ComposedBehaviour>,
@@ -157,7 +212,9 @@ pub struct EventLoop {
 	pending_dial: HashMap<PeerId, oneshot::Sender<Result<(), Box<dyn Error + Send>>>>,
 	pending_start_providing: HashMap<QueryId, oneshot::Sender<()>>,
 	pending_get_providers: HashMap<QueryId, oneshot::Sender<HashSet<PeerId>>>,
-	pending_get_clear_addr: HashMap<QueryId, oneshot::Sender<Result<String, Box<Utf8Error>>>>,
+	pending_put_clear_addr: HashMap<QueryId, oneshot::Sender<()>>,
+	pending_get_clear_addr: HashMap<QueryId, oneshot::Sender<Result<ServerAddrBundle, Box<bincode::ErrorKind>>>>,
+	pending_get_closest_peer: HashMap<QueryId, oneshot::Sender<Result<PeerId, Box<dyn Error + Send>>>>,
 }
 
 impl EventLoop {
@@ -172,6 +229,8 @@ impl EventLoop {
 			pending_start_providing: Default::default(),
 			pending_get_providers: Default::default(),
 			pending_get_clear_addr: Default::default(),
+			pending_put_clear_addr: Default::default(),
+			pending_get_closest_peer: Default::default(),
 		}
 	}
 
@@ -189,6 +248,7 @@ impl EventLoop {
 		}
 	}
 
+	#[instrument(skip(self))]
 	async fn handle_event(
 		&mut self,
 		event: SwarmEvent<
@@ -227,16 +287,36 @@ impl EventLoop {
 				result: QueryResult::GetRecord(Ok(GetRecordOk{ records, .. })), ..
 			})) => {
 				let data = records.get(0).unwrap().record.value.clone();
-				let address = match String::from_utf8(data) {
-					Ok(d) => Ok(d),
-					Err(e) => Err(Box::new(e.utf8_error()))
-				};
+				let bundle: Result<ServerAddrBundle, bincode::Error> = bincode::deserialize(&data);
 				let _ = self
 					.pending_get_clear_addr
 					.remove(&id)
 					.expect("Completed query to previously pending")
-					.send(address);
+					.send(bundle);
 			}
+			SwarmEvent::Behaviour(ComposedEvent::Kademlia(
+			KademliaEvent::OutboundQueryCompleted {
+				id,
+				result: QueryResult::GetClosestPeers(Ok(GetClosestPeersOk { peers, .. })), ..
+			})) => {
+				println!("Closest Peers => {:?}", peers);
+				let peer_id = peers.get(0).unwrap().to_owned();
+				let _ = self
+					.pending_get_closest_peer
+					.remove(&id)
+					.expect("Completed query to previously pending")
+					.send(Ok(peer_id));
+			},
+			SwarmEvent::Behaviour(ComposedEvent::Kademlia(
+			KademliaEvent::OutboundQueryCompleted {
+				id,
+				result: QueryResult::PutRecord(Ok(PutRecordOk{ .. })), ..
+			})) => {
+				let _ = self.pending_put_clear_addr
+					.remove(&id)
+					.expect("Completed query to previously pending")
+					.send(());
+			},
 			SwarmEvent::Behaviour(ComposedEvent::Kademlia( .. )) => {}
 			SwarmEvent::Behaviour(ComposedEvent::Mdns(MdnsEvent::Discovered(list))) => {
 				for (peer_id, multiaddr) in list {
@@ -275,11 +355,14 @@ impl EventLoop {
 						let _ = sender.send(Err(Box::new(error)));
 					}
 				}
-			}
+			},
+			SwarmEvent::ConnectionClosed { .. } => {},
+			SwarmEvent::Dialing( .. ) => {},
 			e => panic!("{:?}", e),
 		}
 	}
 
+	#[instrument(skip(self))]
 	async fn handle_command(&mut self, command: Command) {
 		match command {
 			Command::StartListening { addr, sender } => {
@@ -319,6 +402,13 @@ impl EventLoop {
 					.expect("No store error.");
 				self.pending_start_providing.insert(query_id, sender	);
 			}
+			Command::StopProviding { share_addr } => {
+				self
+					.swarm
+					.behaviour_mut()
+					.kademlia
+					.stop_providing(&share_addr.to_vec().into());
+			}
 			Command::GetProviders { share_addr, sender } => {
 				let query_id = self
 					.swarm
@@ -334,6 +424,29 @@ impl EventLoop {
 					.kademlia
 					.get_record(&Key::from(peer_id.to_bytes()), Quorum::One);
 				self.pending_get_clear_addr.insert(query_id, sender);
+			}
+			Command::PutClearAddr {addr_type, addr, sender} => {
+				let peer_id_bytes = self.swarm.local_peer_id().to_bytes();
+				let bundle = ServerAddrBundle {
+					peer_id: peer_id_bytes.clone(),
+					addr,
+					addr_type,
+				};
+				let data = bincode::serialize(&bundle).unwrap();
+				let query_id = self
+					.swarm
+					.behaviour_mut()
+					.kademlia
+					.put_record(Record::new(Key::from(peer_id_bytes), data), Quorum::Majority).unwrap();
+				self.pending_put_clear_addr.insert(query_id, sender);
+			}
+			Command::GetClosestPeer { addr, sender } => {
+				let query_id = self
+					.swarm
+					.behaviour_mut()
+					.kademlia
+					.get_closest_peers(addr);
+				self.pending_get_closest_peer.insert(query_id, sender);
 			}
 		}
 	}
