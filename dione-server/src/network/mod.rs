@@ -87,6 +87,14 @@ impl Client {
 	}
 
 	#[instrument]
+	pub async fn stop_providing(&self, share_addr: ShareAddress) {
+		self.sender
+			.send(Command::StopProviding { share_addr })
+			.await
+			.expect("Receiver not to be dropped");
+	}
+
+	#[instrument]
 	pub async fn get_providers(&self, share_addr: ShareAddress) -> HashSet<PeerId> {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
@@ -167,6 +175,9 @@ enum Command {
 	StartProviding {
 		share_addr: ShareAddress,
 		sender: oneshot::Sender<()>,
+	},
+	StopProviding {
+		share_addr: ShareAddress,
 	},
 	GetProviders {
 		share_addr: ShareAddress,
@@ -305,7 +316,7 @@ impl EventLoop {
 					.remove(&id)
 					.expect("Completed query to previously pending")
 					.send(());
-			}
+			},
 			SwarmEvent::Behaviour(ComposedEvent::Kademlia( .. )) => {}
 			SwarmEvent::Behaviour(ComposedEvent::Mdns(MdnsEvent::Discovered(list))) => {
 				for (peer_id, multiaddr) in list {
@@ -391,6 +402,13 @@ impl EventLoop {
 					.expect("No store error.");
 				self.pending_start_providing.insert(query_id, sender	);
 			}
+			Command::StopProviding { share_addr } => {
+				self
+					.swarm
+					.behaviour_mut()
+					.kademlia
+					.stop_providing(&share_addr.to_vec().into());
+			}
 			Command::GetProviders { share_addr, sender } => {
 				let query_id = self
 					.swarm
@@ -419,7 +437,7 @@ impl EventLoop {
 					.swarm
 					.behaviour_mut()
 					.kademlia
-					.put_record(Record::new(Key::from(peer_id_bytes), data), Quorum::One).unwrap();
+					.put_record(Record::new(Key::from(peer_id_bytes), data), Quorum::Majority).unwrap();
 				self.pending_put_clear_addr.insert(query_id, sender);
 			}
 			Command::GetClosestPeer { addr, sender } => {

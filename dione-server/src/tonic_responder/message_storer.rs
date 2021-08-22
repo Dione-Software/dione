@@ -84,6 +84,8 @@ impl MessageStorage for MessageStorer {
 			content: first_message.content.clone()
 		};
 
+		self.client.stop_providing(first_message.address.clone()).await;
+
 		Ok(Response::new(response))
 	}
 }
