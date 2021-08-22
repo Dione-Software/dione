@@ -70,7 +70,7 @@ impl Location for LocationService {
 		for peer_id in peer_ids.clone() {
 			let client = self.client.clone();
 			let handle = tokio::spawn(async move {
-				let res = client.get_clear_addr(peer_id.clone()).await.unwrap();
+				let res = client.get_clear_addr(peer_id).await.unwrap();
 
 				event!(Level::DEBUG, "Got clear address: {:?} for: {:?}", res, peer_id);
 

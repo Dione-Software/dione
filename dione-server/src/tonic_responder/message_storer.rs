@@ -3,18 +3,26 @@ use tracing::*;
 
 use crate::message_storage::{SaveMessageRequest, SaveMessageResponse, GetMessageResponse, GetMessageRequest};
 use crate::message_storage::message_storage_server::MessageStorage;
-use crate::db::messages_db::MessagesDb;
 use crate::network::Client;
+
+#[cfg(test)]
 use crate::network;
 
+use crate::db::MessageStoreDb;
+
+#[cfg(test)]
+use crate::db::MessageDb;
+
+use std::fmt::Debug;
+
 #[derive(Debug)]
-pub struct MessageStorer {
-	db_conn: MessagesDb,
+pub struct MessageStorer<T: MessageStoreDb> {
+	db_conn: T,
 	client: Client,
 }
 
-impl MessageStorer {
-	pub(crate) fn new(conn: MessagesDb, client: Client) -> Self {
+impl<T: MessageStoreDb> MessageStorer<T> {
+	pub(crate) fn new(conn: T, client: Client) -> Self {
 		Self {
 			db_conn: conn,
 			client
@@ -23,7 +31,7 @@ impl MessageStorer {
 }
 
 #[tonic::async_trait]
-impl MessageStorage for MessageStorer {
+impl<T: MessageStoreDb + Sync + Send + Debug + 'static> MessageStorage for MessageStorer<T> {
 	#[instrument(skip(request))]
 	async fn save_message(
 		&self,
@@ -59,7 +67,7 @@ impl MessageStorage for MessageStorer {
 
 		event!(Level::DEBUG, "Formulated Response");
 
-		self.db_conn.save_message(request_data.content, request_data.addr).await;
+		self.db_conn.save_message(&request_data.addr, &request_data.content).await.expect("Error saving message");
 
 		event!(Level::DEBUG, "Saved to DB");
 
@@ -75,17 +83,17 @@ impl MessageStorage for MessageStorer {
 
 		let request_data = request.into_inner();
 
-		let db_response = self.db_conn.get_message(request_data.addr)
+		let content = self.db_conn.remove_message(&request_data.addr)
 			.await
-			.expect("Didn't get message");
-		let first_message = db_response.get(0).unwrap();
+			.expect("Didn't get message")
+			.expect("Empty");
 
 		let response = GetMessageResponse {
-			addr: first_message.address.clone(),
-			content: first_message.content.clone()
+			addr: request_data.addr.clone(),
+			content: content.clone()
 		};
 
-		self.client.stop_providing(first_message.address.clone()).await;
+		self.client.stop_providing(request_data.addr.clone()).await;
 
 		Ok(Response::new(response))
 	}
@@ -98,8 +106,9 @@ async fn save_message() {
 	tokio::spawn(async move {
 		event_loop.run().await
 	});
-	let test_db_path = String::from("test_save_message_net.sqlite3");
-	let test_db = MessagesDb::test_connection(&test_db_path);
+	let test_db_path = String::from("test_save_message_net.sled");
+	let test_db = MessageDb::test_connection(&test_db_path);
+	test_db.flush();
 	let message_storer = MessageStorer::new(test_db, client);
 	let save_msg_request = Request::new(
 		SaveMessageRequest {
@@ -117,7 +126,7 @@ async fn save_message() {
 			hash_type: Some(1)
 		}
 	);
-	MessagesDb::destroy_test_connection(&test_db_path).await;
+	MessageDb::destroy_test_connection(&test_db_path).await.unwrap();
 	assert_eq!(test_response.into_inner(), response.into_inner())
 }
 
@@ -128,8 +137,9 @@ async fn get_message() {
 	tokio::spawn(async move {
 		event_loop.run().await
 	});
-	let test_db_path = String::from("test_get_message_net.sqlite3");
-	let test_db = MessagesDb::test_connection(&test_db_path);
+	let test_db_path = String::from("test_get_message_net.sled");
+	let test_db = MessageDb::test_connection(&test_db_path);
+	test_db.flush();
 	let message_storer = MessageStorer::new(test_db, client);
 	let save_msg_request = Request::new(
 		SaveMessageRequest {
@@ -154,6 +164,6 @@ async fn get_message() {
 		addr: b"thisisatestaddress".to_vec(),
 		content: b"This is just testcontent".to_vec()
 	};
-	MessagesDb::destroy_test_connection(&test_db_path).await;
+	MessageDb::destroy_test_connection(&test_db_path).await.unwrap();
 	assert_eq!(response, test_response)
 }

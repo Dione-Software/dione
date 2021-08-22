@@ -49,7 +49,7 @@ impl Client {
 	pub async fn start_listening(
 		&mut self,
 		addr: Multiaddr,
-	) -> Result<(), Box<dyn Error + Send>> {
+	) -> anyhow::Result<()> {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
 			.send(Command::StartListening {addr, sender })
@@ -63,7 +63,7 @@ impl Client {
 		&mut self,
 		peer_id: PeerId,
 		peer_addr: Multiaddr,
-	) -> Result<(), Box<dyn Error + Send>> {
+	) -> anyhow::Result<()> {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
 			.send(Command::Dial {
@@ -105,7 +105,7 @@ impl Client {
 	}
 
 	#[instrument]
-	pub async fn get_clear_addr(&self, peer_id: PeerId) -> Result<ServerAddrBundle, Box<bincode::ErrorKind>> {
+	pub async fn get_clear_addr(&self, peer_id: PeerId) -> anyhow::Result<ServerAddrBundle> {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
 			.send(Command::GetClearAddr { peer_id, sender })
@@ -126,7 +126,7 @@ impl Client {
 	}
 
 	#[instrument]
-	pub async fn get_closest_peer(&self, addr: Vec<u8>) -> Result<PeerId, Box<dyn Error + Send>> {
+	pub async fn get_closest_peer(&self, addr: Vec<u8>) -> anyhow::Result<PeerId> {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
 			.send(Command::GetClosestPeer { addr, sender })
@@ -165,12 +165,12 @@ impl From<KademliaEvent> for ComposedEvent {
 enum Command {
 	StartListening {
 		addr: Multiaddr,
-		sender: oneshot::Sender<Result<(), Box<dyn Error + Send>>>,
+		sender: oneshot::Sender<anyhow::Result<()>>,
 	},
 	Dial {
 		peer_id: PeerId,
 		peer_addr: Multiaddr,
-		sender: oneshot::Sender<Result<(), Box<dyn Error + Send>>>,
+		sender: oneshot::Sender<anyhow::Result<()>>,
 	},
 	StartProviding {
 		share_addr: ShareAddress,
@@ -185,7 +185,7 @@ enum Command {
 	},
 	GetClearAddr {
 		peer_id: PeerId,
-		sender: oneshot::Sender<Result<ServerAddrBundle, Box<bincode::ErrorKind>>>,
+		sender: oneshot::Sender<anyhow::Result<ServerAddrBundle>>,
 	},
 	PutClearAddr {
 		addr_type: crate::message_storage::ServerAddressType,
@@ -194,7 +194,7 @@ enum Command {
 	},
 	GetClosestPeer {
 		addr: ShareAddress,
-		sender: oneshot::Sender<Result<PeerId, Box<dyn Error + Send>>>,
+		sender: oneshot::Sender<anyhow::Result<PeerId>>,
 	},
 }
 
@@ -209,12 +209,12 @@ pub struct ServerAddrBundle {
 pub struct EventLoop {
 	swarm: Swarm<ComposedBehaviour>,
 	command_receiver: mpsc::Receiver<Command>,
-	pending_dial: HashMap<PeerId, oneshot::Sender<Result<(), Box<dyn Error + Send>>>>,
+	pending_dial: HashMap<PeerId, oneshot::Sender<anyhow::Result<()>>>,
 	pending_start_providing: HashMap<QueryId, oneshot::Sender<()>>,
 	pending_get_providers: HashMap<QueryId, oneshot::Sender<HashSet<PeerId>>>,
 	pending_put_clear_addr: HashMap<QueryId, oneshot::Sender<()>>,
-	pending_get_clear_addr: HashMap<QueryId, oneshot::Sender<Result<ServerAddrBundle, Box<bincode::ErrorKind>>>>,
-	pending_get_closest_peer: HashMap<QueryId, oneshot::Sender<Result<PeerId, Box<dyn Error + Send>>>>,
+	pending_get_clear_addr: HashMap<QueryId, oneshot::Sender<anyhow::Result<ServerAddrBundle>>>,
+	pending_get_closest_peer: HashMap<QueryId, oneshot::Sender<anyhow::Result<PeerId>>>,
 }
 
 impl EventLoop {
@@ -287,7 +287,11 @@ impl EventLoop {
 				result: QueryResult::GetRecord(Ok(GetRecordOk{ records, .. })), ..
 			})) => {
 				let data = records.get(0).unwrap().record.value.clone();
-				let bundle: Result<ServerAddrBundle, bincode::Error> = bincode::deserialize(&data);
+				let bundle: anyhow::Result<ServerAddrBundle, bincode::Error> = bincode::deserialize(&data);
+				let bundle = match bundle {
+					Ok(d) => Ok(d),
+					Err(e) => Err(anyhow::Error::from(e))
+				};
 				let _ = self
 					.pending_get_clear_addr
 					.remove(&id)
@@ -352,7 +356,7 @@ impl EventLoop {
 			} => {
 				if attempts_remaining == 0 {
 					if let Some(sender) = self.pending_dial.remove(&peer_id) {
-						let _ = sender.send(Err(Box::new(error)));
+						let _ = sender.send(Err(anyhow::Error::from(error)));
 					}
 				}
 			},
@@ -368,13 +372,11 @@ impl EventLoop {
 			Command::StartListening { addr, sender } => {
 				let _ = match self.swarm.listen_on(addr) {
 					Ok(_) => sender.send(Ok(())),
-					Err(e) => sender.send(Err(Box::new(e))),
+					Err(e) => sender.send(Err(anyhow::Error::from(e))),
 				};
 			}
 			Command::Dial { peer_id, peer_addr, sender } => {
-				if self.pending_dial.contains_key(&peer_id) {
-					todo!("Already dialing peer")
-				} else {
+				if let std::collections::hash_map::Entry::Vacant(_) = self.pending_dial.entry(peer_id) {
 					self.swarm
 						.behaviour_mut()
 						.kademlia
@@ -388,7 +390,7 @@ impl EventLoop {
 							self.pending_dial.insert(peer_id, sender);
 						}
 						Err(e) => {
-							let _ = sender.send(Err(Box::new(e)));
+							let _ = sender.send(Err(anyhow::Error::from(e)));
 						}
 					}
 				}

@@ -1,16 +1,13 @@
-#[macro_use]
-extern crate diesel;
-
 use tonic::transport::Server;
 use tracing::Level;
 
-use crate::db::messages_db::MessagesDb;
 use structopt::StructOpt;
 use libp2p::{Multiaddr, PeerId};
 use libp2p::multiaddr::Protocol;
 use crate::tonic_responder::message_storer::MessageStorer;
 use crate::message_storage::ServerAddressType;
 use crate::tonic_responder::location::LocationService;
+use crate::db::{MessageDb, MessageStoreDb};
 use std::net::SocketAddr;
 
 pub(crate) mod message_storage {
@@ -47,9 +44,6 @@ async fn main() {
 		.expect("Something fucked up during setting up collector");
 
 	let opt = Opt::from_args();
-
-	dotenv::from_path("dione-server/.env")
-		.expect("Error opening config file");
 
 	let (mut client, mut event_loop) = network::new().await.unwrap();
 
@@ -89,7 +83,7 @@ async fn main() {
 	});
 
 
-	let db = MessagesDb::establish_connection();
+	let db = MessageDb::new("server").unwrap();
 
 	let addr = opt.ex;
 	let greeter = MessageStorer::new(db, client.clone());
