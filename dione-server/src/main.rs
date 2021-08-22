@@ -14,6 +14,9 @@ use libp2p::multiaddr::Protocol;
 use tokio::time::{sleep, Duration};
 use crate::tonic_responder::message_storer::MessageStorer;
 use crate::message_storage::ServerAddressType;
+use crate::tonic_responder::location::LocationService;
+use std::net::SocketAddr;
+use std::ops::Mul;
 
 pub(crate) mod message_storage {
 	include!(concat!(env!("OUT_DIR"), "/messagestorage.rs"));
@@ -24,6 +27,7 @@ mod db;
 mod tonic_responder;
 mod network;
 
+/*
 #[tokio::main]
 async fn main() {
 	let opt = Opt::from_args();
@@ -120,11 +124,28 @@ enum CliArgument {
 		addr: String,
 	}
 }
+*/
 
-/*
+#[derive(Debug, StructOpt)]
+#[structopt(name = "libp2p test")]
+struct Opt {
+	#[structopt(long)]
+	ex: SocketAddr,
+
+	#[structopt(long)]
+	peer: Option<Multiaddr>,
+
+	#[structopt(long)]
+	listen_address: Option<Multiaddr>,
+
+	#[structopt(long)]
+	clear_address: String,
+}
+
 #[tokio::main]
 async fn main() {
-	let config: Conf = crate::config::conf_ex::Conf::from_str("dione-server/config/dev_config.toml").unwrap();
+	let opt = Opt::from_args();
+
 	dotenv::from_path("dione-server/.env")
 		.expect("Error opening config file");
 
@@ -134,7 +155,36 @@ async fn main() {
 		event_loop.run().await
 	});
 
-	let config: Conf = crate::config::conf_ex::Conf::from_str("dione-server/config/dev_config.toml").unwrap();
+	match opt.listen_address {
+		Some(addr) => client
+			.start_listening(addr)
+			.await
+			.expect("Listening not to fail"),
+		None => client
+			.start_listening("/ip4/0.0.0.0/tcp/0".parse().unwrap())
+			.await
+			.expect("Listening not to fail."),
+	};
+
+
+	if let Some(addr) = opt.peer {
+		let peer_id = match addr.iter().last() {
+			Some(Protocol::P2p(hash)) => PeerId::from_multihash(hash).expect("Vaild hash."),
+			_ => panic!("Expect peer multiaddr to contain peer ID.")
+		};
+		client
+			.dial(peer_id, addr)
+			.await
+			.expect("Dial to succeed");
+	}
+
+	let clear_addr: String = opt.clear_address;
+
+	let client_clone = client.clone();
+
+	let _ = tokio::spawn( async move {
+		client_clone.put_clear_addr(ServerAddressType::Clear, clear_addr).await;
+	});
 
 	let collector = tracing_subscriber::fmt()
 		.with_max_level(Level::DEBUG)
@@ -145,17 +195,20 @@ async fn main() {
 
 	let db = MessagesDb::establish_connection();
 
-	let addr = config.network_con.message_storage.into();
+	let addr = opt.ex;
 	let greeter = MessageStorer::new(db);
+
+	let locer = LocationService::new(client);
 
 	println!("Storer listening on {}", addr);
 
 	let svc = crate::message_storage::message_storage_server::MessageStorageServer::new(greeter);
+	let loc = crate::message_storage::location_server::LocationServer::new(locer);
 
 	Server::builder()
 		.add_service(svc)
+		.add_service(loc)
 		.serve(addr)
 		.await
 		.unwrap();
 }
-*/

@@ -1,6 +1,6 @@
 use libp2p::{NetworkBehaviour, Multiaddr, PeerId, Swarm};
 use libp2p::mdns::{Mdns, MdnsEvent};
-use libp2p::kad::{Kademlia, KademliaEvent, QueryId, QueryResult, GetProvidersOk, GetRecordOk, Quorum, Record, GetClosestPeersOk};
+use libp2p::kad::{Kademlia, KademliaEvent, QueryId, QueryResult, GetProvidersOk, GetRecordOk, Quorum, Record, GetClosestPeersOk, PutRecordOk};
 use libp2p::kad::store::MemoryStore;
 use std::error::Error;
 use tokio::sync::{oneshot, mpsc};
@@ -72,7 +72,7 @@ impl Client {
 		receiver.await.expect("Sender not to be dropped")
 	}
 
-	pub async fn start_providing(&mut self, share_addr: ShareAddress) {
+	pub async fn start_providing(&self, share_addr: ShareAddress) {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
 			.send(Command::StartProviding { share_addr, sender })
@@ -81,7 +81,7 @@ impl Client {
 		receiver.await.expect("Sender not to be dropped.")
 	}
 
-	pub async fn get_providers(&mut self, share_addr: ShareAddress) -> HashSet<PeerId> {
+	pub async fn get_providers(&self, share_addr: ShareAddress) -> HashSet<PeerId> {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
 			.send(Command::GetProviders { share_addr, sender })
@@ -90,7 +90,7 @@ impl Client {
 		receiver.await.expect("Sender not to be dropped.")
 	}
 
-	pub async fn get_clear_addr(&mut self, peer_id: PeerId) -> Result<ServerAddrBundle, Box<bincode::ErrorKind>> {
+	pub async fn get_clear_addr(&self, peer_id: PeerId) -> Result<ServerAddrBundle, Box<bincode::ErrorKind>> {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
 			.send(Command::GetClearAddr { peer_id, sender })
@@ -99,16 +99,17 @@ impl Client {
 		receiver.await.expect("Sender not to be dropped.")
 	}
 
-	pub async fn put_clear_addr(&mut self, addr_type: crate::message_storage::ServerAddressType, addr: String) {
+	pub async fn put_clear_addr(&self, addr_type: crate::message_storage::ServerAddressType, addr: String) {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
 			.send(Command::PutClearAddr { addr_type, addr, sender })
 			.await
 			.expect("Command receiver not to be dropped.");
+		println!("Waiting for clear addr");
 		receiver.await.expect("Sender not to be dropped")
 	}
 
-	pub async fn get_closest_peer(&mut self, addr: Vec<u8>) -> Result<PeerId, Box<dyn Error + Send>> {
+	pub async fn get_closest_peer(&self, addr: Vec<u8>) -> Result<PeerId, Box<dyn Error + Send>> {
 		let (sender, receiver) = oneshot::channel();
 		self.sender
 			.send(Command::GetClosestPeer { addr, sender })
@@ -180,8 +181,8 @@ enum Command {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ServerAddrBundle {
 	peer_id: Vec<u8>,
-	addr: String,
-	addr_type: crate::message_storage::ServerAddressType,
+	pub addr: String,
+	pub addr_type: crate::message_storage::ServerAddressType,
 }
 
 pub struct EventLoop {
@@ -276,12 +277,23 @@ impl EventLoop {
 				id,
 				result: QueryResult::GetClosestPeers(Ok(GetClosestPeersOk { peers, .. })), ..
 			})) => {
+				println!("Closest Peers => {:?}", peers);
 				let peer_id = peers.get(0).unwrap().to_owned();
 				let _ = self
 					.pending_get_closest_peer
 					.remove(&id)
 					.expect("Completed query to previously pending")
 					.send(Ok(peer_id));
+			},
+			SwarmEvent::Behaviour(ComposedEvent::Kademlia(
+			KademliaEvent::OutboundQueryCompleted {
+				id,
+				result: QueryResult::PutRecord(Ok(PutRecordOk{ .. })), ..
+			})) => {
+				let _ = self.pending_put_clear_addr
+					.remove(&id)
+					.expect("Completed query to previously pending")
+					.send(());
 			}
 			SwarmEvent::Behaviour(ComposedEvent::Kademlia( .. )) => {}
 			SwarmEvent::Behaviour(ComposedEvent::Mdns(MdnsEvent::Discovered(list))) => {
@@ -323,6 +335,7 @@ impl EventLoop {
 				}
 			},
 			SwarmEvent::ConnectionClosed { .. } => {},
+			SwarmEvent::Dialing( .. ) => {},
 			e => panic!("{:?}", e),
 		}
 	}
@@ -394,7 +407,7 @@ impl EventLoop {
 					.swarm
 					.behaviour_mut()
 					.kademlia
-					.put_record(Record::new(Key::from(peer_id_bytes), data), Quorum::Majority).unwrap();
+					.put_record(Record::new(Key::from(peer_id_bytes), data), Quorum::One).unwrap();
 				self.pending_put_clear_addr.insert(query_id, sender);
 			}
 			Command::GetClosestPeer { addr, sender } => {
