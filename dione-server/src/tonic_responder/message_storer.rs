@@ -42,8 +42,10 @@ impl<T: MessageStoreDb + Sync + Send + Debug + 'static> MessageStorage for Messa
 
 		let client_clone = self.client.clone();
 
+		println!("Request data => {:?}", request);
 
 		let request_data = request.into_inner();
+
 
 		let addr = request_data.addr.clone();
 
@@ -67,6 +69,8 @@ impl<T: MessageStoreDb + Sync + Send + Debug + 'static> MessageStorage for Messa
 
 		event!(Level::DEBUG, "Formulated Response");
 
+		println!("Saving content => {:?}", &request_data.content);
+
 		self.db_conn.save_message(&request_data.addr, &request_data.content).await.expect("Error saving message");
 
 		event!(Level::DEBUG, "Saved to DB");
@@ -88,6 +92,7 @@ impl<T: MessageStoreDb + Sync + Send + Debug + 'static> MessageStorage for Messa
 			.expect("Didn't get message")
 			.expect("Empty");
 
+		println!("Message content => {:?}", content);
 		let response = GetMessageResponse {
 			addr: request_data.addr.clone(),
 			content: content.clone()

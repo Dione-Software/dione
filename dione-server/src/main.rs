@@ -9,6 +9,7 @@ use crate::message_storage::ServerAddressType;
 use crate::tonic_responder::location::LocationService;
 use crate::db::{MessageDb, MessageStoreDb};
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 pub(crate) mod message_storage {
 	include!(concat!(env!("OUT_DIR"), "/messagestorage.rs"));
@@ -33,6 +34,9 @@ struct Opt {
 
 	#[structopt(long)]
 	clear_address: String,
+
+	#[structopt(long)]
+	db_path: PathBuf,
 }
 
 #[tokio::main]
@@ -83,7 +87,7 @@ async fn main() {
 	});
 
 
-	let db = MessageDb::new("server").unwrap();
+	let db = MessageDb::new(&opt.db_path).unwrap();
 
 	let addr = opt.ex;
 	let greeter = MessageStorer::new(db, client.clone());
