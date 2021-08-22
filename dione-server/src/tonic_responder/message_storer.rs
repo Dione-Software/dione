@@ -5,6 +5,7 @@ use crate::message_storage::{SaveMessageRequest, SaveMessageResponse, GetMessage
 use crate::message_storage::message_storage_server::MessageStorage;
 use crate::db::messages_db::MessagesDb;
 use crate::network::Client;
+use crate::network;
 
 #[derive(Debug)]
 pub struct MessageStorer {
@@ -92,9 +93,14 @@ impl MessageStorage for MessageStorer {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn save_message() {
+	let (client, mut event_loop) = network::new().await.unwrap();
+
+	tokio::spawn(async move {
+		event_loop.run().await
+	});
 	let test_db_path = String::from("test_save_message_net.sqlite3");
 	let test_db = MessagesDb::test_connection(&test_db_path);
-	let message_storer = MessageStorer::new(test_db);
+	let message_storer = MessageStorer::new(test_db, client);
 	let save_msg_request = Request::new(
 		SaveMessageRequest {
 			addr: b"thisisatestaddress".to_vec(),
@@ -117,9 +123,14 @@ async fn save_message() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn get_message() {
+	let (client, mut event_loop) = network::new().await.unwrap();
+
+	tokio::spawn(async move {
+		event_loop.run().await
+	});
 	let test_db_path = String::from("test_get_message_net.sqlite3");
 	let test_db = MessagesDb::test_connection(&test_db_path);
-	let message_storer = MessageStorer::new(test_db);
+	let message_storer = MessageStorer::new(test_db, client);
 	let save_msg_request = Request::new(
 		SaveMessageRequest {
 			addr: b"thisisatestaddress".to_vec(),
