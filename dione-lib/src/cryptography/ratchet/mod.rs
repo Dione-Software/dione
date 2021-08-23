@@ -138,11 +138,59 @@ impl Share {
 	}
 }
 
+#[derive(PartialEq, Debug)]
 pub struct MagicRatchet {
 	enc_ratchet: RatchetEncHeader,
 	share_number: usize, // Number of shares to produce
 	address_ratchets: Vec<AddressRatchet>,
 	skipped_addresses: HashSet<Vec<[u8; 32]>>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ExMagicRatchet {
+	#[serde(with = "serde_bytes")]
+	enc_ratchet: Vec<u8>,
+	share_number: usize,
+	address_ratchets: Vec<NestedVec>,
+	skipped_addresses: HashSet<Vec<[u8; 32]>>,
+}
+
+impl From<&MagicRatchet> for ExMagicRatchet {
+	fn from(mr: &MagicRatchet) -> Self {
+		let enc_ratchet = mr.enc_ratchet.export();
+		let share_number = mr.share_number;
+		let address_ratchets = mr.address_ratchets
+			.iter()
+			.map(|e| e.export())
+			.map(|e| NestedVec::from(e))
+			.collect();
+		let skipped_addresses = mr.skipped_addresses.clone();
+		Self {
+			enc_ratchet,
+			share_number,
+			address_ratchets,
+			skipped_addresses
+		}
+	}
+}
+
+impl From<&ExMagicRatchet> for MagicRatchet {
+	fn from(ex_mr: &ExMagicRatchet) -> Self {
+		let enc_ratchet = RatchetEncHeader::import(&ex_mr.enc_ratchet);
+		let share_number = ex_mr.share_number;
+		let address_ratchets = ex_mr.address_ratchets
+			.iter()
+			.map(|e| e.field.clone())
+			.map(|e| AddressRatchet::import(&e))
+			.collect();
+		let skipped_addresses = ex_mr.skipped_addresses.clone();
+		Self {
+			enc_ratchet,
+			share_number,
+			address_ratchets,
+			skipped_addresses
+		}
+	}
 }
 
 impl MagicRatchet {
@@ -258,6 +306,16 @@ impl MagicRatchet {
 		self.skipped_addresses.insert(addresses.clone());
 		addresses
 	}
+
+	pub fn export(&self) -> Vec<u8> {
+		let ex: ExMagicRatchet = self.into();
+		bincode::serialize(&ex).unwrap()
+	}
+
+	pub fn import(inp: &[u8]) -> Self {
+		let ex: ExMagicRatchet = bincode::deserialize(inp).unwrap();
+		MagicRatchet::from(&ex)
+	}
 }
 
 impl Iterator for MagicRatchet {
@@ -322,5 +380,26 @@ mod magic_ratchet_test {
 		let encrypted = magic_ratchet_bob.send(&data, b"ad").unwrap();
 		let decrypted = magic_ratchet_alice.recv(&encrypted, b"ad").unwrap();
 		assert_eq!(decrypted, data)
+	}
+
+	#[test]
+	fn import_export() {
+		let enc_rk = [0; 32];
+		let shka = [1; 32];
+		let snhkb = [2; 32];
+		let address_rks = alloc::vec![[3; 32], [4; 32], [5; 32]];
+		let number_shares = 3;
+		let (magic_ratchet_bob, enc_pk, address_pks) = MagicRatchet::init_bob(enc_rk, shka, snhkb, number_shares, address_rks.clone());
+		let magic_ratchet_alice = MagicRatchet::init_alice(enc_rk, enc_pk, shka, snhkb, number_shares, address_rks, address_pks);
+
+		let ex_magic_ratchet_bob = magic_ratchet_bob.export();
+		let im_magic_ratchet_bob = MagicRatchet::import(&ex_magic_ratchet_bob);
+
+		assert_eq!(im_magic_ratchet_bob, magic_ratchet_bob);
+
+		let ex_magic_ratchet_alice = magic_ratchet_alice.export();
+		let im_magic_ratchet_alice = MagicRatchet::import(&ex_magic_ratchet_alice);
+
+		assert_eq!(im_magic_ratchet_alice, magic_ratchet_alice);
 	}
 }
