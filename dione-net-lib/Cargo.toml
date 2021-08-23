@@ -1,0 +1,15 @@
+[package]
+name = "dione-net-lib"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tonic = "0.5.2"
+prost = "0.8"
+tokio = "1.10.0"
+anyhow = "1.0.43"
+
+[build-dependencies]
+tonic-build = "0.5.2"

@@ -54,14 +54,6 @@ pub async fn get_message(net_addr: &'static str, addr: &[u8]) -> bool {
         addr: addr.to_vec(),
     });
 
-    /*
-    let response = match client.get_message(request).await {
-        Ok(d) => d,
-        Err(_) => { return false }
-    };
-
-     */
-
     let response = client.get_message(request).await.unwrap();
 
     let response = response.into_inner();
