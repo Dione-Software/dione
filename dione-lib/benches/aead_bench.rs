@@ -111,5 +111,5 @@ fn aes_gcm_siv_bench(c: &mut Criterion) {
 	}
 }
 
-criterion_group!(benches, aes_gcm_bench);
+criterion_group!(benches, aes_gcm_bench, aes_gcm_siv_bench);
 criterion_main!(benches);

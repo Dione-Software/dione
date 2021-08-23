@@ -1,6 +1,7 @@
 use alloc::vec::Vec;
 
 pub mod aes_aead;
+pub mod dh;
 
 
 #[derive(Debug, PartialEq)]
