@@ -5,19 +5,10 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[lib]
-path = "src/lib.rs"
-name = "dione_test_client_lib"
-
-[[bin]]
-path = "src/main.rs"
-name = "dione-test-client"
 
 [dependencies]
-tonic = "0.5"
-prost = "0.8"
-tokio = { version = "1.7", features = ["macros", "rt-multi-thread"] }
-dione-lib = { path = "../dione-lib" }
-
-[build-dependencies]
-tonic-build = "0.5.1"
+dione-net-lib = { path = "../dione-net-lib" }
+dialoguer = "0.8.0"
+structopt = "0.3.22"
+anyhow = "1.0.43"
+uuid = { version = "0.8", features = ["v4"] }

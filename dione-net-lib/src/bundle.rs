@@ -34,8 +34,6 @@ pub struct BundleBuilder {
 	partner: Option<AliceBob>,
 	number_shares: Option<usize>,
 	identity_key: Option<IdentityKey>,
-	enc_pk: Option<PublicKey>,
-	address_pks: Option<Vec<PublicKey>>,
 }
 
 impl Default for BundleBuilder {
@@ -44,8 +42,6 @@ impl Default for BundleBuilder {
 			partner: None,
 			number_shares: None,
 			identity_key: None,
-			enc_pk: None,
-			address_pks: None
 		}
 	}
 }
@@ -63,16 +59,6 @@ impl BundleBuilder {
 
 	pub fn identity_key(mut self, identity_key: IdentityKey) -> Self {
 		self.identity_key = Some(identity_key);
-		self
-	}
-
-	pub fn encryption_pk(mut self, public_key: PublicKey) -> Self {
-		self.enc_pk = Some(public_key);
-		self
-	}
-
-	pub fn address_pks(mut self, public_keys: Vec<PublicKey>) -> Self {
-		self.address_pks = Some(public_keys);
 		self
 	}
 
@@ -377,7 +363,6 @@ impl BobBundle {
 }
 
 pub struct HostBundle {
-	db: Db,
 	pub bundle: AliceBundle,
 }
 
@@ -386,7 +371,6 @@ impl HostBundle {
 		let bundle_bytes = bundle.to_bytes().unwrap();
 		let _ = db.insert(HOST_BUNDLE_KEY, bundle_bytes);
 		Self {
-			db,
 			bundle
 		}
 	}

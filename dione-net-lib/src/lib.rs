@@ -13,7 +13,7 @@ use dione_lib::cryptography::ratchet::AddressShare;
 use serde::{Deserialize, Serialize};
 
 mod net;
-mod session;
+pub mod session;
 mod bundle;
 mod user;
 mod host;
@@ -120,10 +120,6 @@ impl Client {
     pub fn init_one_session(&mut self, id: Uuid) -> anyhow::Result<()> {
         let peer_uuid = id.as_bytes().to_vec();
 
-        let host_peer_uuid = self.host_user.id.as_bytes().to_vec();
-
-        println!("Host Peer uuid => {:?}", host_peer_uuid);
-
         let (_, server_address) = self.known_hosts.get_server_for_message(&self.runtime, &peer_uuid)?;
         let peer_bundle_bytes = get_message(&self.runtime, server_address.clone(), &peer_uuid)?.content;
 
@@ -174,7 +170,7 @@ impl Client {
 
 
         let peer_bundle_bytes = get_message(&self.runtime, server_address.clone(), &host_peer_key)?.content;
-        let mut peer_bundle: BobBundle = BobBundle::from_bytes(&peer_bundle_bytes)?;
+        let peer_bundle: BobBundle = BobBundle::from_bytes(&peer_bundle_bytes)?;
 
         let (kind, magic_ratchet) = host_bundle.init(&peer_bundle)?;
 
@@ -209,7 +205,7 @@ impl Client {
         let init_message_bytes = get_message(&self.runtime, server_address, &host_peer_key)?.content;
         let init_message: Vec<AddressShare> = bincode::deserialize(&init_message_bytes)?;
 
-        let mut session = self.sessions.get_mut(&id).unwrap();
+        let session = self.sessions.get_mut(&id).unwrap();
         session.process_init_message(init_message);
 
         Ok(())
@@ -220,7 +216,6 @@ impl Client {
         let address_shares = session.send_message(content)?;
         for address_share in address_shares {
             let address = address_share.0;
-            println!("Send address => {:?}", address);
             let share = address_share.1;
             let (_, server_address) = self.known_hosts.get_server_for_address(&self.runtime, &address)?;
             let _ = save_message(&self.runtime, server_address, &address, &share)?;
@@ -231,10 +226,8 @@ impl Client {
     pub fn recv_message(&mut self, id: Uuid) -> anyhow::Result<Vec<u8>> {
         let session = self.sessions.get_mut(&id).unwrap();
         let addresses = session.next_address()?;
-        println!("Addresses {:?}", addresses);
         let mut parts = Vec::new();
         for address in addresses {
-            println!("Address => {:?}", address);
             let (_, server_address) = self.known_hosts.get_server_for_message(&self.runtime, &address)?;
             let d = get_message(&self.runtime, server_address, &address)?.content;
             let address_share = (address, d);
@@ -242,6 +235,14 @@ impl Client {
         }
         let d = session.recv_message(&parts)?;
         Ok(d)
+    }
+
+    pub fn get_uuid(&self) -> Uuid {
+        self.host_user.id
+    }
+
+    pub fn get_peers(&self) -> Vec<Uuid> {
+        self.sessions.keys().map(|e| e.to_owned()).collect()
     }
 
 }
