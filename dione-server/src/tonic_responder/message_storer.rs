@@ -32,7 +32,7 @@ impl<T: MessageStoreDb> MessageStorer<T> {
 
 #[tonic::async_trait]
 impl<T: MessageStoreDb + Sync + Send + Debug + 'static> MessageStorage for MessageStorer<T> {
-	#[instrument(skip(request))]
+	#[instrument(skip(self))]
 	async fn save_message(
 		&self,
 		request: Request<SaveMessageRequest>,
@@ -50,6 +50,8 @@ impl<T: MessageStoreDb + Sync + Send + Debug + 'static> MessageStorage for Messa
 		let addr = request_data.addr.clone();
 
 		let dht = tokio::spawn(async move {
+			println!("Propagating {:?}", addr);
+
 			event!(Level::DEBUG, "Propagating to DHT");
 
 			client_clone.start_providing(addr).await;
@@ -69,18 +71,19 @@ impl<T: MessageStoreDb + Sync + Send + Debug + 'static> MessageStorage for Messa
 
 		event!(Level::DEBUG, "Formulated Response");
 
+		dht.await.unwrap();
+
 		println!("Saving content => {:?}", &request_data.content);
 
 		self.db_conn.save_message(&request_data.addr, &request_data.content).await.expect("Error saving message");
 
 		event!(Level::DEBUG, "Saved to DB");
 
-		dht.await.unwrap();
 
 		Ok(Response::new(reply))
 	}
 
-	#[instrument(skip(request))]
+	#[instrument(skip(self))]
 	async fn get_message(&self, request: Request<GetMessageRequest>) -> Result<Response<GetMessageResponse>, Status> {
 		println!("Got a request from {:?}", request.remote_addr());
 		event!(Level::INFO, "Processing Request");

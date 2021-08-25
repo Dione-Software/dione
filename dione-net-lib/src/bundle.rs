@@ -378,7 +378,7 @@ impl BobBundle {
 
 pub struct HostBundle {
 	db: Db,
-	bundle: AliceBundle,
+	pub bundle: AliceBundle,
 }
 
 impl HostBundle {

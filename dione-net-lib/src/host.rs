@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use crate::KNOWN_HOSTS_KEY;
 use serde::{Serialize, Deserialize};
 use tokio::runtime::Runtime;
-use crate::net::{get_server_for_address, NetError};
+use crate::net::{get_server_for_address, NetError, get_server_for_message};
 use rand::rngs::OsRng;
 use rand::prelude::*;
 use thiserror::Error;
@@ -99,6 +99,32 @@ impl KnownHosts {
 			}
 		}
 	}
+
+	pub fn get_server_for_message(&mut self, rt: &Runtime, message_address: &[u8]) -> Result<(ServerAddressType, String), HostError> {
+		loop {
+			let server = match self.hosts.iter().choose(&mut OsRng) {
+				Some(d) => d.to_owned(),
+				None => {
+					return Err(HostError::NoHosts);
+				}
+			};
+			break match get_server_for_message(rt, server.address.clone(), message_address) {
+				Ok(d) => Ok(d.get(0).unwrap().clone()),
+				Err(e) => {
+					match e {
+						NetError::TonicError { .. } => {
+							self.remove(server.clone()).unwrap();
+							continue;
+						}
+						NetError::ServerResponseErr(e) => {
+							let err = HostError::NetError {source: NetError::ServerResponseErr(e)};
+							return Err(err)
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 #[test]
@@ -106,7 +132,7 @@ fn get_server_for_address_test() {
 	let db = open("get_server_for_address_test_db").unwrap();
 	let mut known_hosts = KnownHosts::new(db);
 
-	let host_1 = Host::from_net_prop(&ServerAddressType::Clear, "http://127.0.0.1:8011");
+	let host_1 = Host::from_net_prop(&ServerAddressType::Clear, "http://127.0.0.1:8010");
 	let host_2 = Host::from_net_prop(&ServerAddressType::Clear, "http://127.0.0.1:8000");
 
 	known_hosts.add(host_1).unwrap();

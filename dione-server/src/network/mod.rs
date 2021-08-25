@@ -2,7 +2,7 @@ use tracing::*;
 
 use libp2p::{NetworkBehaviour, Multiaddr, PeerId, Swarm};
 use libp2p::mdns::{Mdns, MdnsEvent};
-use libp2p::kad::{Kademlia, KademliaEvent, QueryId, QueryResult, GetProvidersOk, GetRecordOk, Quorum, Record, GetClosestPeersOk, PutRecordOk};
+use libp2p::kad::{Kademlia, KademliaEvent, QueryId, QueryResult, GetProvidersOk, GetRecordOk, Quorum, Record, GetClosestPeersOk, PutRecordOk, AddProviderOk};
 use libp2p::kad::store::MemoryStore;
 use std::error::Error;
 use tokio::sync::{oneshot, mpsc};
@@ -215,6 +215,7 @@ pub struct EventLoop {
 	pending_put_clear_addr: HashMap<QueryId, oneshot::Sender<()>>,
 	pending_get_clear_addr: HashMap<QueryId, oneshot::Sender<anyhow::Result<ServerAddrBundle>>>,
 	pending_get_closest_peer: HashMap<QueryId, oneshot::Sender<anyhow::Result<PeerId>>>,
+	providing: HashSet<Key>,
 }
 
 impl EventLoop {
@@ -231,6 +232,7 @@ impl EventLoop {
 			pending_get_clear_addr: Default::default(),
 			pending_put_clear_addr: Default::default(),
 			pending_get_closest_peer: Default::default(),
+			providing: Default::default()
 		}
 	}
 
@@ -260,9 +262,10 @@ impl EventLoop {
 			SwarmEvent::Behaviour(ComposedEvent::Kademlia(
 			KademliaEvent::OutboundQueryCompleted {
 				id,
-				result: QueryResult::StartProviding(_),
+				result: QueryResult::StartProviding(Ok(AddProviderOk{ key } )),
 				..
 			}, )) => {
+				self.providing.insert(key);
 				let sender: oneshot::Sender<()> = self
 					.pending_start_providing
 					.remove(&id)
@@ -272,9 +275,13 @@ impl EventLoop {
 			SwarmEvent::Behaviour(ComposedEvent::Kademlia(
 			KademliaEvent::OutboundQueryCompleted {
 				id,
-				result: QueryResult::GetProviders(Ok(GetProvidersOk{ providers, ..})),
+				result: QueryResult::GetProviders(Ok(GetProvidersOk{ providers, key, .. })),
 				..
 			})) => {
+				let mut providers = providers;
+				if self.providing.contains(&key) {
+					providers.insert(self.swarm.local_peer_id().clone());
+				}
 				let _ = self
 					.pending_get_providers
 					.remove(&id)
@@ -301,10 +308,20 @@ impl EventLoop {
 			SwarmEvent::Behaviour(ComposedEvent::Kademlia(
 			KademliaEvent::OutboundQueryCompleted {
 				id,
-				result: QueryResult::GetClosestPeers(Ok(GetClosestPeersOk { peers, .. })), ..
+				result: QueryResult::GetClosestPeers(Ok(GetClosestPeersOk { peers, key })), ..
 			})) => {
+				let key = libp2p::kad::kbucket::Key::from(key);
+				let host_peer_id = self.swarm.local_peer_id().clone();
+				let host_peer_key = libp2p::kad::kbucket::Key::from(host_peer_id);
+				let host_distance = host_peer_key.distance(&key);
 				println!("Closest Peers => {:?}", peers);
-				let peer_id = peers.get(0).unwrap().to_owned();
+				let mut peer_id = peers.get(0).unwrap().to_owned();
+				let remote_peer_key = libp2p::kad::kbucket::Key::from(peer_id);
+				let remote_distance = remote_peer_key.distance(&key);
+				if remote_distance > host_distance {
+					peer_id = host_peer_id;
+				}
+				println!("Returning peer => {:?}", peer_id);
 				let _ = self
 					.pending_get_closest_peer
 					.remove(&id)
@@ -396,27 +413,31 @@ impl EventLoop {
 				}
 			}
 			Command::StartProviding { share_addr, sender } => {
+				let key: Key = share_addr.to_vec().into();
 				let query_id = self
 					.swarm
 					.behaviour_mut()
 					.kademlia
-					.start_providing(share_addr.to_vec().into())
+					.start_providing(key)
 					.expect("No store error.");
 				self.pending_start_providing.insert(query_id, sender	);
 			}
 			Command::StopProviding { share_addr } => {
+				let key: Key = share_addr.to_vec().into();
 				self
 					.swarm
 					.behaviour_mut()
 					.kademlia
-					.stop_providing(&share_addr.to_vec().into());
+					.stop_providing(&key);
+				self.providing.remove(&key);
 			}
 			Command::GetProviders { share_addr, sender } => {
+				let key: Key = share_addr.to_vec().into();
 				let query_id = self
 					.swarm
 					.behaviour_mut()
 					.kademlia
-					.get_providers(share_addr.to_vec().into());
+					.get_providers(key);
 				self.pending_get_providers.insert(query_id, sender);
 			}
 			Command::GetClearAddr { peer_id, sender } => {

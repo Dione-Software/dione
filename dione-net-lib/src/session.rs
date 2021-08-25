@@ -1,5 +1,8 @@
 use dione_lib::cryptography::ratchet::{MagicRatchet, AddressShare};
 use crate::bundle::AliceBob;
+use sled::Db;
+use std::collections::HashMap;
+use uuid::Uuid;
 
 pub struct SessionBuilder {
 	partner: Option<AliceBob>,
@@ -52,5 +55,20 @@ impl Session {
 	
 	pub fn process_init_message(&mut self, message: Vec<AddressShare>) {
 		self.magic_ratchet.recv(&message, b"").unwrap();
+	}
+
+	pub fn send_message(&mut self, content: &[u8]) -> anyhow::Result<Vec<AddressShare>> {
+		let res = self.magic_ratchet.send(content, b"").unwrap();
+		Ok(res)
+	}
+
+	pub fn next_address(&mut self) -> anyhow::Result<Vec<[u8; 32]>> {
+		let res = self.magic_ratchet.next_addresses();
+		Ok(res)
+	}
+
+	pub fn recv_message(&mut self, data: &[AddressShare]) -> anyhow::Result<Vec<u8>> {
+		let d = self.magic_ratchet.recv(data, b"").unwrap();
+		Ok(d)
 	}
 }
