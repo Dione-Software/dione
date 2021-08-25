@@ -143,7 +143,7 @@ pub struct MagicRatchet {
 	enc_ratchet: RatchetEncHeader,
 	share_number: usize, // Number of shares to produce
 	address_ratchets: Vec<AddressRatchet>,
-	skipped_addresses: HashSet<Vec<[u8; 32]>>,
+	pub skipped_addresses: HashSet<Vec<[u8; 32]>>,
 }
 
 #[derive(Serialize, Deserialize)]

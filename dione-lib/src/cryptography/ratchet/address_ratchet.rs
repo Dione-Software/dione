@@ -201,7 +201,9 @@ impl AddressRatchet {
 
 	pub fn proccess_recv(&mut self, header: &AddressHeader) {
 		let _ = self.try_skipped_message_keys(header);
-		self.dhratchet(header);
+		if Some(header.public_key) != self.dhr {
+			self.dhratchet(header);
+		}
 	}
 
 	pub fn dhratchet(&mut self, header: &AddressHeader) {

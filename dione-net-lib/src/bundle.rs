@@ -24,7 +24,7 @@ pub enum BundleBuilderError {
 	NumberSharesNotSet,
 }
 
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum AliceBob {
 	Alice,
 	Bob,

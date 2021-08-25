@@ -146,7 +146,7 @@ impl Client {
 
         let host_bundle_bytes = host_bundle.strip().to_bytes()?;
 
-        let mut session = Session::new(kind, magic_ratchet);
+        let session = Session::new(kind, magic_ratchet);
 
 
         self.sessions.insert(id, session);
@@ -157,7 +157,7 @@ impl Client {
         host_peer_key.append(&mut peer_uuid.clone());
 
         let (_, server_address) = self.known_hosts.get_server_for_address(&self.runtime, &host_peer_key)?;
-        let d = save_message(&self.runtime, server_address, &host_peer_key, &host_bundle_bytes).unwrap();
+        let _ = save_message(&self.runtime, server_address, &host_peer_key, &host_bundle_bytes).unwrap();
         Ok(())
     }
 
@@ -220,6 +220,7 @@ impl Client {
         let address_shares = session.send_message(content)?;
         for address_share in address_shares {
             let address = address_share.0;
+            println!("Send address => {:?}", address);
             let share = address_share.1;
             let (_, server_address) = self.known_hosts.get_server_for_address(&self.runtime, &address)?;
             let _ = save_message(&self.runtime, server_address, &address, &share)?;
@@ -229,7 +230,6 @@ impl Client {
 
     pub fn recv_message(&mut self, id: Uuid) -> anyhow::Result<Vec<u8>> {
         let session = self.sessions.get_mut(&id).unwrap();
-        let addresses = session.next_address()?;
         let addresses = session.next_address()?;
         println!("Addresses {:?}", addresses);
         let mut parts = Vec::new();
@@ -255,8 +255,6 @@ struct InitMessageBundle {
 #[cfg(test)]
 mod tests {
     use crate::Client;
-    use std::thread::sleep;
-    use std::time::Duration;
 
     #[test]
     fn connect_test() {
@@ -287,7 +285,9 @@ mod tests {
 
         let message_content = b"Hello World".to_vec();
         client1.send_message(client2_id, &message_content).unwrap();
+        client1.send_message(client2_id, &message_content).unwrap();
 
+        let received = client2.recv_message(client1_id).unwrap();
         let received = client2.recv_message(client1_id).unwrap();
         assert_eq!(received, message_content)
     }
