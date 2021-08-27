@@ -98,8 +98,9 @@ fn main() -> anyhow::Result<()> {
 							println!("Looks like you didn't do as told");
 							continue
 						}
-						client.start_session(peer_uuid).expect("Error starting session");
+						client.init_three_session(peer_uuid).expect("Error starting session");
 						println!("Congratulations you just added a new user with the Uuid => {}", peer_uuid);
+						println!("Peer has to continue on there side");
 					},
 					1 => {
 						if Confirm::with_theme(&ColorfulTheme::default())
@@ -112,7 +113,17 @@ fn main() -> anyhow::Result<()> {
 							continue
 						}
 						client.init_two_session(peer_uuid).unwrap();
-						println!("Congratulations you just added a new user with the Uuid => {}. Continue on remote peer", peer_uuid);
+						if Confirm::with_theme(&ColorfulTheme::default())
+							.with_prompt("Did remote peer continued the process?")
+							.interact()
+							.unwrap()
+							.not()
+						{
+							println!("Looks like you don't want to continue. Aborting");
+							continue
+						}
+						client.start_session(peer_uuid).unwrap();
+						println!("Congratulations you just added a new user with the Uuid => {}", peer_uuid);
 					}
 					_ => {
 						println!("This is a mistake");
