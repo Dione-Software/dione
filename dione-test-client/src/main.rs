@@ -27,7 +27,7 @@ fn main() -> anyhow::Result<()> {
 	client.provide_bundle().expect("Error providing bundle");
 
 	loop {
-		let possibilities = vec!["Receive Message", "Send Message", "Add User"];
+		let possibilities = vec!["Receive Message", "Send Message", "Add User", "Exit"];
 		let selection = Select::with_theme(&ColorfulTheme::default())
 			.items(&possibilities)
 			.with_prompt("What do you want to do?")
@@ -132,9 +132,14 @@ fn main() -> anyhow::Result<()> {
 
 
 			}
+			3 => {
+				println!("Exiting");
+				break
+			}
 			_ => {
 				println!("This is a mistake");
 			}
 		}
 	}
+	Ok(())
 }
