@@ -217,6 +217,8 @@ impl Client {
         let (_, server_address) = self.known_hosts.get_server_for_address(&self.runtime, &host_peer_key)?;
         let _ = save_message(&self.runtime, server_address, &host_peer_key, &init_message_bytes).unwrap();
 
+        self.provide_bundle()?;
+
         Ok(())
     }
 
@@ -236,6 +238,8 @@ impl Client {
 
         let session = self.sessions.get_mut(&id).unwrap();
         session.process_init_message(init_message);
+
+        self.provide_bundle()?;
 
         Ok(())
     }

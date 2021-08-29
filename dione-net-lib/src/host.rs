@@ -20,7 +20,9 @@ pub enum HostError {
 	NetError {
 		#[from]
 		source: super::net::NetError,
-	}
+	},
+	#[error("No Server for message found")]
+	NoServerForMessage,
 }
 
 #[derive(Serialize, Deserialize, Hash, Eq, PartialEq, Clone)]
@@ -109,7 +111,12 @@ impl KnownHosts {
 				}
 			};
 			break match get_server_for_message(rt, server.address.clone(), message_address) {
-				Ok(d) => Ok(d.get(0).unwrap().clone()),
+				Ok(d) => Ok(match d.get(0) {
+					Some(d) => d.to_owned(),
+					None => {
+						return Err(HostError::NoServerForMessage)
+					}
+				}),
 				Err(e) => {
 					match e {
 						NetError::TonicError { .. } => {
