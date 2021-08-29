@@ -135,6 +135,7 @@ impl KnownHosts {
 }
 
 #[test]
+#[ignore]
 fn get_server_for_address_test() {
 	let db = open("get_server_for_address_test_db").unwrap();
 	let mut known_hosts = KnownHosts::new(db);
