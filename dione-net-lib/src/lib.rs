@@ -291,12 +291,14 @@ mod tests {
     use crate::Client;
 
     #[test]
+    #[ignore]
     fn connect_test() {
         let mut client = Client::new("client1", 3).unwrap();
         let _ = client.connect(String::from("http://127.0.0.1:8010")).unwrap();
     }
 
     #[test]
+    #[ignore]
     fn general_test() {
         let mut client1 = Client::new("provide_test_client", 3).unwrap();
         client1.connect(String::from("http://127.0.0.1:8010")).unwrap();
