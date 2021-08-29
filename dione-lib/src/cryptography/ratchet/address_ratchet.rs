@@ -201,7 +201,15 @@ impl AddressRatchet {
 
 	pub fn proccess_recv(&mut self, header: &AddressHeader) {
 		let _ = self.try_skipped_message_keys(header);
-		self.dhratchet(header);
+		if Some(header.public_key) != self.dhr {
+			self.dhratchet(header);
+		}
+		if None == self.ckr {
+			let (rk, ckr) = kdf_rk(&self.rk, &self.dhs.key_agreement(&self.dhr.unwrap()));
+			self.rk = rk;
+			self.ckr = Some(ckr);
+		}
+		// self.skip_message_keys(header.n).unwrap();
 	}
 
 	pub fn dhratchet(&mut self, header: &AddressHeader) {
@@ -209,13 +217,13 @@ impl AddressRatchet {
 		self.ns = 0;
 		self.nr = 0;
 		self.dhr = Some(header.public_key);
-		let (rk, ckr) = kdf_rk(&self.rk,
-							   &self.dhs.key_agreement(&self.dhr.unwrap()));
+		let (rk, ckr) = kdf_rk(&self.rk, &self.dhs.key_agreement(&self.dhr.unwrap()));
+		// let (rk, ckr) = kdf_ck(&self.rk);
 		self.rk = rk;
 		self.ckr = Some(ckr);
-		self.dhs = DhKeyPair::new();
-		let (rk, cks) = kdf_rk(&self.rk,
-							   &self.dhs.key_agreement(&self.dhr.unwrap()));
+		// self.dhs = DhKeyPair::new();
+		let (rk, cks) = kdf_rk(&self.rk, &self.dhs.key_agreement(&self.dhr.unwrap()));
+		// let (rk, cks) = kdf_ck(&self.rk);
 		self.rk = rk;
 		self.cks = Some(cks);
 	}

@@ -1,2 +1,2 @@
 [workspace]
-members = ["dione-server", "dione-lib", "dione-test-client"]
+members = ["dione-server", "dione-lib", "dione-test-client", "dione-net-lib"]

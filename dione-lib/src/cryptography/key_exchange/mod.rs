@@ -57,7 +57,7 @@ impl Debug for AliceKeyBundle {
 }
 
 #[derive(Serialize, Deserialize, Zeroize)]
-struct AliceKeyBundleBytes {
+pub struct AliceKeyBundleBytes {
 	#[serde(with = "serde_bytes")]
 	ik: Vec<u8>,
 	#[serde(with = "serde_bytes")]

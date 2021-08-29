@@ -6,7 +6,7 @@ use alloc::borrow::ToOwned;
 use core::borrow::Borrow;
 use crate::cryptography::sharing::shamir::ShamirSecretSharing;
 use crate::cryptography::sharing::{ThresholdSharingAlgorithm, SharingAlgorithm, SharingError};
-use p256::PublicKey;
+pub use p256::PublicKey;
 use crate::cryptography::sharing::block::BlockSharing;
 use hashbrown::HashSet;
 
@@ -99,7 +99,7 @@ impl From<ExDecryptedMessage> for DecryptedMessage {
 	}
 }
 
-type AddressShare = ([u8; 32], Vec<u8>);
+pub type AddressShare = ([u8; 32], Vec<u8>);
 
 type EncryptedMessageWithExtra = ((Vec<u8>, [u8; 12]), Vec<u8>, [u8; 12]);
 
@@ -143,7 +143,7 @@ pub struct MagicRatchet {
 	enc_ratchet: RatchetEncHeader,
 	share_number: usize, // Number of shares to produce
 	address_ratchets: Vec<AddressRatchet>,
-	skipped_addresses: HashSet<Vec<[u8; 32]>>,
+	pub skipped_addresses: HashSet<Vec<[u8; 32]>>,
 }
 
 #[derive(Serialize, Deserialize)]
