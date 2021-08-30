@@ -138,6 +138,7 @@ impl Share {
 	}
 }
 
+/// Magic Ratchet used for encrypting and decrypting messages, as well as generating addresses.
 #[derive(PartialEq, Debug)]
 pub struct MagicRatchet {
 	enc_ratchet: RatchetEncHeader,
@@ -194,6 +195,11 @@ impl From<&ExMagicRatchet> for MagicRatchet {
 }
 
 impl MagicRatchet {
+	/// Initialize the Magic Ratchet as Alice. This follows a [X3DH](https://signal.org/docs/specifications/x3dh/). Be aware that more credentials are needed in comparison to an encryption Double Ratchet.
+	///
+	/// __Don't reuse these credentials!__
+	///
+	/// The public keys needed here have to originate from the [MagicRatchet::init_bob] method.
 	pub fn init_alice(enc_rk: [u8; 32], enc_pk: PublicKey, shka: [u8; 32], snhkb: [u8; 32], share_number: usize, address_rks: Vec<[u8; 32]>, address_pks: Vec<PublicKey>) -> Self {
 		let enc_ratchet = RatchetEncHeader::init_alice(enc_rk, enc_pk, shka, snhkb);
 		let address_ratchets = address_rks.iter().zip(address_pks.iter())
@@ -207,6 +213,11 @@ impl MagicRatchet {
 		}
 	}
 
+	/// Initialize the Magic Ratchet as Bob. This follows a [X3DH](https://signal.org/docs/specifications/x3dh/). Be aware that more credentials are needed in comparison to an encryption Double Ratchet.
+	///
+	/// __Don't reuse these credentials!__
+	///
+	/// The resulting public keys have to be fed into [MagicRatchet::init_alice].
 	pub fn init_bob(enc_rk: [u8; 32], shka: [u8; 32], snhkb: [u8; 32], share_number: usize, address_rks: Vec<[u8; 32]>)  -> (Self, PublicKey, Vec<PublicKey>) {
 		let (enc_ratchet, enc_pk) = RatchetEncHeader::init_bob(enc_rk, shka, snhkb);
 		let (address_ratchets, address_pks): (Vec<_>, Vec<_>) = address_rks
@@ -223,6 +234,9 @@ impl MagicRatchet {
 		)
 	}
 
+	/// Sending data with the [MagicRatchet].
+	///
+	/// Outputs a `Vec` of shares with their addresses. It's important that Address and Share stay together.
 	pub fn send(&mut self, data: &[u8], ad: &[u8]) -> Result<Vec<AddressShare>, MagicRatchetError> {
 		let (address_header, addresses): (Vec<AddressHeader>, Vec<[u8; 32]>) = self.address_ratchets.iter_mut().map(|e| e.ratchet_send().unwrap()).unzip();
 		let decrypted_message = DecryptedMessage::new(address_header, data.to_vec());
@@ -253,6 +267,10 @@ impl MagicRatchet {
 			.collect())
 	}
 
+
+	/// Process shares with their addresses and get the decrypted message.
+	///
+	/// Again it's really important that Address and Share stay together.
 	pub fn recv(&mut self, data: &[AddressShare], ad: &[u8]) -> Result<Vec<u8>, MagicRatchetError> {
 		let d: Vec<([u8; 32], Share)> = data
 			.iter()
@@ -300,6 +318,9 @@ impl MagicRatchet {
 		Ok(decrypted_message.message)
 	}
 
+	/// Get the addresses for the next message to be received.
+	///
+	/// The result of this is ever changing and currently old addresses are not easliy accessible. It's very important that they get stored __externally__.
 	pub fn next_addresses(&mut self) -> Vec<[u8; 32]> {
 		let addresses: Vec<[u8; 32]> = self.address_ratchets.iter_mut()
 			.map(|e| e.next_address().unwrap()).collect();
@@ -307,17 +328,20 @@ impl MagicRatchet {
 		addresses
 	}
 
+	/// Exports the [MagicRatchet] to binary data. This is necessary for storing and restoring the [MagicRatchet] between sessions and to preserve it's state.
 	pub fn export(&self) -> Vec<u8> {
 		let ex: ExMagicRatchet = self.into();
 		bincode::serialize(&ex).unwrap()
 	}
 
+	/// Counter method to [MagicRatchet::export]. Takes binary data as input in order to construct a [MagicRatchet] for usage.
 	pub fn import(inp: &[u8]) -> Self {
 		let ex: ExMagicRatchet = bincode::deserialize(inp).unwrap();
 		MagicRatchet::from(&ex)
 	}
 }
 
+/// Iterate over the next message addresses.
 impl Iterator for MagicRatchet {
 	type Item = Vec<[u8; 32]>;
 
