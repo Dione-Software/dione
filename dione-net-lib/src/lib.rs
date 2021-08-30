@@ -212,7 +212,6 @@ impl Client {
         let init_message_bytes = bincode::serialize(&init_message)?;
 
         host_peer_key.append(&mut ender);
-        println!("Host peer key => {:?}", host_peer_key);
 
         let (_, server_address) = self.known_hosts.get_server_for_address(&self.runtime, &host_peer_key)?;
         let _ = save_message(&self.runtime, server_address, &host_peer_key, &init_message_bytes).unwrap();
