@@ -456,6 +456,7 @@ impl EventLoop {
 					addr_type,
 				};
 				let data = bincode::serialize(&bundle).unwrap();
+				let _ = self.swarm.behaviour_mut().kademlia.bootstrap();
 				let query_id = self
 					.swarm
 					.behaviour_mut()
