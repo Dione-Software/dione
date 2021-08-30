@@ -27,4 +27,4 @@ jobs:
       uses: docker/build-push-action@v2
       with:
         push: true
-        tags: format('{0}/dione-server:latest', {{ github.actor }})
+        tags: dione-software/dione-server:latest
