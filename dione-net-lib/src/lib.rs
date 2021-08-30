@@ -1,3 +1,9 @@
+//! Client Library with Networking.
+//!
+//! This is the easy client interface to Dione. Although it'S currently not, the goal is to be a batteries included library for Dione.
+//!
+//! The library uses [sled](http://sled.rs) as a storage backend.
+
 use sled::{Db, open};
 use std::path::Path;
 use crate::user::User;
@@ -13,7 +19,7 @@ use dione_lib::cryptography::ratchet::AddressShare;
 use serde::{Deserialize, Serialize};
 
 mod net;
-pub mod session;
+pub(crate) mod session;
 mod bundle;
 mod user;
 mod host;
@@ -24,10 +30,11 @@ const KNOWN_HOSTS_KEY: &[u8] = b"known_hosts";
 const NUMBER_SHARES_KEY: &[u8] = b"number_shares";
 const HOST_BUNDLE_KEY: &[u8] = b"host_bundle";
 
-pub mod message_storage {
+pub(crate) mod message_storage {
     tonic::include_proto!("messagestorage");
 }
 
+/// Client for external usage
 pub struct Client {
     db: Db,
     runtime: Runtime,
@@ -40,6 +47,7 @@ pub struct Client {
 }
 
 impl Client {
+    /// Constructs a new client with a Path for the Db and the number of shares this communication uses.
     pub fn new<P: AsRef<Path>>(p: P, number_shares: usize) -> anyhow::Result<Self> {
         let db = open(p)?;
 
@@ -71,6 +79,7 @@ impl Client {
         Ok(client)
     }
 
+    /// Initial connection to a server. This is necessary to perform all other functionalities and tests the network connection.
     pub fn connect(&mut self, server_address: String) -> anyhow::Result<()> {
         match get_server_for_address(&self.runtime, server_address.clone(), b"") {
             Ok(d) => {
@@ -86,6 +95,7 @@ impl Client {
         Ok(())
     }
 
+    /// Initial necessary step for establishing a connection to other [Client]. Provides the own message bundle to servers.
     pub fn provide_bundle(&mut self) -> anyhow::Result<()> {
         let host_uuid = self.host_user
             .id
@@ -117,6 +127,7 @@ impl Client {
         Ok(())
     }
 
+    /// Step one for establishing a communication session. Remote peers id is needed.
     pub fn init_one_session(&mut self, id: Uuid) -> anyhow::Result<()> {
         let peer_uuid = id.as_bytes().to_vec();
 
@@ -157,6 +168,7 @@ impl Client {
         Ok(())
     }
 
+    /// Step two for establishing a communication session. Remote peers id is needed.
     pub fn init_two_session(&mut self, id: Uuid) -> anyhow::Result<()> {
         let peer_uuid = id.as_bytes().to_vec();
         let mut host_peer_key = peer_uuid.clone();
@@ -190,6 +202,7 @@ impl Client {
         Ok(())
     }
 
+    /// Step three for establishing a communication session. Remote peers id is needed.
     pub fn init_three_session(&mut self, id: Uuid) -> anyhow::Result<()> {
         let peer_uuid = id.as_bytes().to_vec();
 
@@ -221,6 +234,7 @@ impl Client {
         Ok(())
     }
 
+    /// Step four for establishing a communication session. Remote peers id is needed.
     pub fn start_session(&mut self, id: Uuid) -> anyhow::Result<()> {
         let peer_uuid = id.as_bytes().to_vec();
         let mut host_peer_key = peer_uuid.clone();
@@ -243,6 +257,7 @@ impl Client {
         Ok(())
     }
 
+    /// Send message to Uuid. Established connection is necessary.
     pub fn send_message(&mut self, id: Uuid, content: &[u8]) -> anyhow::Result<()> {
         let session = self.sessions.get_mut(&id).unwrap();
         let address_shares = session.send_message(content)?;
@@ -255,6 +270,7 @@ impl Client {
         Ok(())
     }
 
+    /// Receiving message from Uuid. Established connection and send message necessary.
     pub fn recv_message(&mut self, id: Uuid) -> anyhow::Result<Vec<u8>> {
         let session = self.sessions.get_mut(&id).unwrap();
         let addresses = session.next_address()?;
@@ -269,10 +285,12 @@ impl Client {
         Ok(d)
     }
 
+    /// Get clients Uuid.
     pub fn get_uuid(&self) -> Uuid {
         self.host_user.id
     }
 
+    /// Get Peers who wich a connection is established.
     pub fn get_peers(&self) -> Vec<Uuid> {
         self.sessions.keys().map(|e| e.to_owned()).collect()
     }
