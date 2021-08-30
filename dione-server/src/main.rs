@@ -84,6 +84,7 @@ async fn main() {
 
 	let _ = tokio::spawn( async move {
 		client_clone.put_clear_addr(ServerAddressType::Clear, clear_addr).await;
+		println!("Successfully Put Clear Address");
 	});
 
 

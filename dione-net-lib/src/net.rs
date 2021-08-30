@@ -43,6 +43,8 @@ pub fn get_server_for_address(rt: &Runtime, server_address: String, message_addr
 		}
 	};
 
+	println!("Getting Server for address: {:?}", message_address);
+
 	let request = Request::new(ServerLocRequest {
 		addr: message_address.to_vec(),
 	});
