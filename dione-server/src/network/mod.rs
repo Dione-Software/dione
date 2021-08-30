@@ -1,14 +1,12 @@
 use tracing::*;
 
 use libp2p::{NetworkBehaviour, Multiaddr, PeerId, Swarm};
-use libp2p::mdns::{Mdns, MdnsEvent};
 use libp2p::kad::{Kademlia, KademliaEvent, QueryId, QueryResult, GetProvidersOk, GetRecordOk, Quorum, Record, GetClosestPeersOk, PutRecordOk, AddProviderOk};
 use libp2p::kad::store::MemoryStore;
 use std::error::Error;
 use tokio::sync::{oneshot, mpsc};
 use std::collections::{HashSet, HashMap};
 use libp2p::swarm::{SwarmEvent, SwarmBuilder};
-use libp2p::core::either::EitherError;
 use libp2p::multiaddr::Protocol;
 use libp2p::kad::record::Key;
 use tokio_stream::StreamExt;
@@ -20,10 +18,11 @@ pub async fn new() -> Result<(Client, EventLoop), Box<dyn Error>> {
 	let id_keys = libp2p::identity::Keypair::generate_ed25519();
 	let peer_id = id_keys.public().into_peer_id();
 
+	let transport = libp2p::development_transport(id_keys).await.unwrap();
+
 	let swarm = SwarmBuilder::new(
-		libp2p::development_transport(id_keys).await?,
+		transport,
 		ComposedBehaviour {
-			mdns: Mdns::new(Default::default()).await?,
 			kademlia: Kademlia::new(peer_id, MemoryStore::new(peer_id)),
 		},
 		peer_id
@@ -139,20 +138,12 @@ impl Client {
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = false, out_event = "ComposedEvent")]
 struct ComposedBehaviour {
-	mdns: Mdns,
 	kademlia: Kademlia<MemoryStore>,
 }
 
 #[derive(Debug)]
 enum ComposedEvent {
-	Mdns(MdnsEvent),
 	Kademlia(KademliaEvent),
-}
-
-impl From<MdnsEvent> for ComposedEvent {
-	fn from(event: MdnsEvent) -> Self {
-		ComposedEvent::Mdns(event)
-	}
 }
 
 impl From<KademliaEvent> for ComposedEvent {
@@ -255,7 +246,7 @@ impl EventLoop {
 		&mut self,
 		event: SwarmEvent<
 			ComposedEvent,
-			EitherError<void::Void, std::io::Error>
+			std::io::Error
 		>
 	) {
 		match event {
@@ -339,16 +330,6 @@ impl EventLoop {
 					.send(());
 			},
 			SwarmEvent::Behaviour(ComposedEvent::Kademlia( .. )) => {}
-			SwarmEvent::Behaviour(ComposedEvent::Mdns(MdnsEvent::Discovered(list))) => {
-				for (peer_id, multiaddr) in list {
-					self.swarm.behaviour_mut().kademlia.add_address(&peer_id, multiaddr);
-				}
-			}
-			SwarmEvent::Behaviour(ComposedEvent::Mdns(MdnsEvent::Expired(list))) => {
-				for (peer_id, multiaddr) in list {
-					self.swarm.behaviour_mut().kademlia.remove_address(&peer_id, &multiaddr);
-				}
-			}
 			SwarmEvent::NewListenAddr { address, .. } => {
 				let local_peer_id = *self.swarm.local_peer_id();
 				println!("Local node is listening on {:?}",
@@ -359,6 +340,8 @@ impl EventLoop {
 			SwarmEvent::ConnectionEstablished {
 				peer_id, endpoint, ..
 			} => {
+				println!("Adding peer {} with address {}", peer_id, endpoint.get_remote_address().clone());
+				self.swarm.behaviour_mut().kademlia.add_address(&peer_id, endpoint.get_remote_address().clone());
 				if endpoint.is_dialer() {
 					if let Some(sender) = self.pending_dial.remove(&peer_id) {
 						let _ = sender.send(Ok(()));

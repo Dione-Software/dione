@@ -10,6 +10,7 @@ use crate::tonic_responder::location::LocationService;
 use crate::db::{MessageDb, MessageStoreDb};
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 pub(crate) mod message_storage {
 	include!(concat!(env!("OUT_DIR"), "/messagestorage.rs"));
@@ -25,9 +26,6 @@ mod network;
 struct Opt {
 	#[structopt(long)]
 	ex: SocketAddr,
-
-	#[structopt(long)]
-	peer: Option<Multiaddr>,
 
 	#[structopt(long)]
 	listen_address: Option<Multiaddr>,
@@ -67,7 +65,8 @@ async fn main() {
 	};
 
 
-	if let Some(addr) = opt.peer {
+	if let Some(addr) = std::env::var_os("PEER") {
+		let addr = Multiaddr::from_str(addr.to_str().unwrap()).expect("Couldn't pares multiaddr");
 		let peer_id = match addr.iter().last() {
 			Some(Protocol::P2p(hash)) => PeerId::from_multihash(hash).expect("Vaild hash."),
 			_ => panic!("Expect peer multiaddr to contain peer ID.")
@@ -84,6 +83,7 @@ async fn main() {
 
 	let _ = tokio::spawn( async move {
 		client_clone.put_clear_addr(ServerAddressType::Clear, clear_addr).await;
+		println!("Successfully Put Clear Address");
 	});
 
 
@@ -98,7 +98,6 @@ async fn main() {
 
 	let svc = crate::message_storage::message_storage_server::MessageStorageServer::new(greeter);
 	let loc = crate::message_storage::location_server::LocationServer::new(locer);
-
 	Server::builder()
 		.add_service(svc)
 		.add_service(loc)
