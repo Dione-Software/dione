@@ -27,7 +27,7 @@ fn main() -> anyhow::Result<()> {
 	client.provide_bundle().expect("Error providing bundle");
 
 	loop {
-		let possibilities = vec!["Receive Message", "Send Message", "Add User", "Exit"];
+		let possibilities = vec!["Receive Message", "Receive File", "Send Message", "Send File", "Add User", "Exit"];
 		let selection = Select::with_theme(&ColorfulTheme::default())
 			.items(&possibilities)
 			.with_prompt("What do you want to do?")
@@ -51,6 +51,21 @@ fn main() -> anyhow::Result<()> {
 				let possible_users = client.get_peers();
 				let selected_user = Select::with_theme(&ColorfulTheme::default())
 					.items(&possible_users)
+					.with_prompt("From which user do you want to receive a message?")
+					.default(0)
+					.interact().unwrap();
+				let user = possible_users.get(selected_user).unwrap().to_owned();
+				let path: String = Input::with_theme(&ColorfulTheme::default())
+					.with_prompt("Enter path for recieving data")
+					.interact_text()
+					.unwrap();
+				let received_message_bytes = client.recv_message(user).expect("Error receiving file");
+				std::fs::write(path, &received_message_bytes).expect("Cannot write file");
+			}
+			2 => {
+				let possible_users = client.get_peers();
+				let selected_user = Select::with_theme(&ColorfulTheme::default())
+					.items(&possible_users)
 					.with_prompt("To what user do you want to send a message?")
 					.default(0)
 					.interact().unwrap();
@@ -63,7 +78,25 @@ fn main() -> anyhow::Result<()> {
 				client.send_message(user, message_bytes).expect("Error sending message");
 				println!("Success! Send message.");
 			}
-			2 => {
+			3 => {
+				let possible_users = client.get_peers();
+				let selected_user = Select::with_theme(&ColorfulTheme::default())
+					.items(&possible_users)
+					.with_prompt("From which user do you want to receive a message?")
+					.default(0)
+					.interact().unwrap();
+				let user = possible_users.get(selected_user).unwrap().to_owned();
+				let path: String = Input::with_theme(&ColorfulTheme::default())
+					.with_prompt("Enter path for recieving data")
+					.interact_text()
+					.unwrap();
+				let message_bytes = match std::fs::read(path) {
+					Ok(d) => d,
+					Err(_) => continue,
+				};
+				client.send_message(user, &message_bytes).expect("Error sending file");
+			}
+			4 => {
 				let peer_uuid_string: String = Input::with_theme(&ColorfulTheme::default())
 					.with_prompt("Enter remote user Uuid")
 					.interact_text()
@@ -132,7 +165,7 @@ fn main() -> anyhow::Result<()> {
 
 
 			}
-			3 => {
+			5 => {
 				println!("Exiting");
 				break
 			}

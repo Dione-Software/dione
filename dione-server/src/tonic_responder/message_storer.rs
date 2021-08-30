@@ -32,17 +32,14 @@ impl<T: MessageStoreDb> MessageStorer<T> {
 
 #[tonic::async_trait]
 impl<T: MessageStoreDb + Sync + Send + Debug + 'static> MessageStorage for MessageStorer<T> {
-	#[instrument(skip(self))]
+	#[instrument(skip(self, request))]
 	async fn save_message(
 		&self,
 		request: Request<SaveMessageRequest>,
 	) -> Result<Response<SaveMessageResponse>, Status> {
-		println!("Got a request from {:?}", request.remote_addr());
 		event!(Level::INFO, "Processing Request");
 
 		let client_clone = self.client.clone();
-
-		println!("Request data => {:?}", request);
 
 		let request_data = request.into_inner();
 
@@ -73,8 +70,6 @@ impl<T: MessageStoreDb + Sync + Send + Debug + 'static> MessageStorage for Messa
 
 		dht.await.unwrap();
 
-		println!("Saving content => {:?}", &request_data.content);
-
 		self.db_conn.save_message(&request_data.addr, &request_data.content).await.expect("Error saving message");
 
 		event!(Level::DEBUG, "Saved to DB");
@@ -83,7 +78,7 @@ impl<T: MessageStoreDb + Sync + Send + Debug + 'static> MessageStorage for Messa
 		Ok(Response::new(reply))
 	}
 
-	#[instrument(skip(self))]
+	#[instrument(skip(self, request))]
 	async fn get_message(&self, request: Request<GetMessageRequest>) -> Result<Response<GetMessageResponse>, Status> {
 		println!("Got a request from {:?}", request.remote_addr());
 		event!(Level::INFO, "Processing Request");
@@ -95,7 +90,6 @@ impl<T: MessageStoreDb + Sync + Send + Debug + 'static> MessageStorage for Messa
 			.expect("Didn't get message")
 			.expect("Empty");
 
-		println!("Message content => {:?}", content);
 		let response = GetMessageResponse {
 			addr: request_data.addr.clone(),
 			content: content.clone()

@@ -21,7 +21,7 @@ impl LocationService {
 
 #[tonic::async_trait]
 impl Location for LocationService {
-	#[instrument(skip(request))]
+	#[instrument(skip(self, request))]
 	async fn look_up(&self, request: Request<ServerLocRequest>) -> Result<Response<ServerLocResponse>, Status> {
 		let address = request.into_inner().addr;
 
@@ -55,7 +55,7 @@ impl Location for LocationService {
 		Ok(response)
 	}
 
-	#[instrument(skip(request))]
+	#[instrument(skip(self, request))]
 	async fn message_look_up(&self, request: Request<ServerLocRequest>) -> Result<Response<MessageLocResponse>, Status> {
 		let address = request.into_inner().addr;
 
