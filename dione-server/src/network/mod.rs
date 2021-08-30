@@ -18,8 +18,10 @@ pub async fn new() -> Result<(Client, EventLoop), Box<dyn Error>> {
 	let id_keys = libp2p::identity::Keypair::generate_ed25519();
 	let peer_id = id_keys.public().into_peer_id();
 
+	let transport = libp2p::tokio_development_transport(id_keys)?;
+
 	let swarm = SwarmBuilder::new(
-		libp2p::development_transport(id_keys).await?,
+		transport,
 		ComposedBehaviour {
 			kademlia: Kademlia::new(peer_id, MemoryStore::new(peer_id)),
 		},
