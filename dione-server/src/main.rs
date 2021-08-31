@@ -40,7 +40,7 @@ struct Opt {
 #[tokio::main]
 async fn main() {
 	let collector = tracing_subscriber::fmt()
-		.with_max_level(Level::DEBUG)
+		.with_max_level(Level::INFO)
 		.finish();
 	tracing::subscriber::set_global_default(collector)
 		.expect("Something fucked up during setting up collector");
