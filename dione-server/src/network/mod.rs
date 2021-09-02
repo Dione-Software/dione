@@ -133,6 +133,16 @@ impl Client {
 			.expect("Command receiver not to be dropped.");
 		receiver.await.expect("Sender not to be dropped")
 	}
+
+	#[instrument]
+	pub async fn get_listen_address(&self) -> anyhow::Result<Vec<Multiaddr>> {
+		let (sender, receiver) = oneshot::channel();
+		self.sender
+			.send(Command::GetListenAddress { sender })
+			.await
+			.expect("Command receiver not to be dropped.");
+		Ok(receiver.await.expect("Error thrown in lookup").expect("Sender not to be dropped"))
+	}
 }
 
 #[derive(NetworkBehaviour)]
@@ -187,6 +197,9 @@ enum Command {
 		addr: ShareAddress,
 		sender: oneshot::Sender<anyhow::Result<PeerId>>,
 	},
+	GetListenAddress {
+		sender: oneshot::Sender<anyhow::Result<Vec<Multiaddr>>>,
+	}
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -271,7 +284,7 @@ impl EventLoop {
 			})) => {
 				let mut providers = providers;
 				if self.providing.contains(&key) {
-					providers.insert(self.swarm.local_peer_id().clone());
+					providers.insert(*self.swarm.local_peer_id());
 				}
 				let _ = self
 					.pending_get_providers
@@ -302,7 +315,7 @@ impl EventLoop {
 				result: QueryResult::GetClosestPeers(Ok(GetClosestPeersOk { peers, key })), ..
 			})) => {
 				let key = libp2p::kad::kbucket::Key::from(key);
-				let host_peer_id = self.swarm.local_peer_id().clone();
+				let host_peer_id = *self.swarm.local_peer_id();
 				let host_peer_key = libp2p::kad::kbucket::Key::from(host_peer_id);
 				let host_distance = host_peer_key.distance(&key);
 				println!("Closest Peers => {:?}", peers);
@@ -454,6 +467,11 @@ impl EventLoop {
 					.kademlia
 					.get_closest_peers(addr);
 				self.pending_get_closest_peer.insert(query_id, sender);
+			}
+			Command::GetListenAddress { sender } => {
+				let local_peer_id = self.swarm.local_peer_id().to_owned().into();
+				let listen_address: Vec<Multiaddr> = self.swarm.listeners().map(|e| e.to_owned().with(Protocol::P2p(local_peer_id))).collect();
+				sender.send(Ok(listen_address)).expect("Receiver not to be dropped");
 			}
 		}
 	}

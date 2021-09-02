@@ -3,7 +3,7 @@ use crate::bundle::AliceBob;
 use serde::{Serialize, Deserialize};
 use std::borrow::Borrow;
 
-pub(crate) struct SessionBuilder {
+pub struct SessionBuilder {
 	partner: Option<AliceBob>,
 	magic_ratchet: Option<MagicRatchet>,
 }
@@ -33,7 +33,7 @@ impl SessionBuilder {
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct Session {
+pub struct Session {
 	partner: AliceBob,
 	magic_ratchet: MagicRatchet,
 }

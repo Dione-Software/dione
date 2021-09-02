@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Dione - Node - Interface</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial,monospace;
+            font-variant: small-caps;
+        }
+        h1.header_container {
+            padding-top: 2%;
+            font-size: 300%;
+
+        }
+        h2.header_container {
+            padding-top: 1%;
+            font-size: 200%;
+        }
+        div.header_container {
+            padding: 5%;
+            background: aqua;
+        }
+        div.libp2p_container {
+            margin-top: 1%;
+            padding: 1.5%;
+            background: aliceblue;
+        }
+        div.libp2p_container:after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+        .column {
+            float: left;
+            width: 50%;
+        }
+        p.packages_title {
+            margin: 1%;
+            font-size: 150%;
+        }
+        p.packages_number {
+            margin: 1%;
+            font-size: 250%;
+        }
+        div.packages {
+            background: limegreen;
+            margin: 5%;
+            padding: 5%;
+        }
+        p.address {
+            font-family: Courier, monospace;
+            font-variant: normal;
+            background: lightgray;
+            padding: 0.5%;
+            margin: 0.5%;
+        }
+        div.address {
+            background: black;
+            padding: 0.5%;
+            margin: 0.5%;
+        }
+        div.address_header {
+            padding: 0.5%;
+            margin: 0.1%;
+            background: darkorange;
+        }
+    </style>
+
+</head>
+<body>
+<div class="header_container">
+    <h1 class="header_container">Dione</h1>
+    <h2 class="header_container">Node - Interface</h2>
+</div>
+<div class="libp2p_container">
+    <h2 class="header_container">Libp2p Bandwith</h2>
+    <div class="column">
+        <div class="packages">
+            <p class="packages_title">Bytes Send</p>
+            <p class="packages_number">{{ bytes_send }}</p>
+        </div>
+    </div>
+    <div class="column">
+        <div class="packages">
+            <p class="packages_title">Bytes Received</p>
+            <p class="packages_number">{{ bytes_received }}</p>
+        </div>
+    </div>
+</div>
+<div class="address_header">
+    <h2 class="address_header">
+        External Addresses of Peer:
+    </h2>
+</div>
+{% for address in multiaddresses %}
+<div class="address">
+    <p class="address">{{address}}</p>
+</div>
+{% endfor %}
+</body>
+</html>

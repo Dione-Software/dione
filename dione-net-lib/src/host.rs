@@ -34,7 +34,7 @@ pub struct Host {
 impl Host {
 	pub fn from_net_prop(kind: &ServerAddressType, inp: &str) -> Self {
 		Self {
-			kind: kind.clone(),
+			kind: *kind,
 			address: inp.to_string(),
 		}
 	}

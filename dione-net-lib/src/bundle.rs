@@ -17,11 +17,11 @@ use crate::HOST_BUNDLE_KEY;
 #[derive(Debug, Error)]
 pub enum BundleBuilderError {
 	#[error("Partner not set (Alice or Bob)")]
-	PartnerNotSet,
+	Partner,
 	#[error("Identity key not set")]
-	IdentityKeyNotSet,
+	IdentityKey,
 	#[error("Number of shares not set")]
-	NumberSharesNotSet,
+	NumberShares,
 }
 
 #[derive(PartialEq, Debug, Copy, Clone, Serialize, Deserialize)]
@@ -66,19 +66,19 @@ impl BundleBuilder {
 		let partner = match self.partner {
 			Some(d) => d,
 			None => {
-				return Err(anyhow::Error::from(BundleBuilderError::PartnerNotSet))
+				return Err(anyhow::Error::from(BundleBuilderError::Partner))
 			}
 		};
 		let identity_key = match self.identity_key {
 			Some(d) => d,
 			None => {
-				return Err(anyhow::Error::from(BundleBuilderError::IdentityKeyNotSet))
+				return Err(anyhow::Error::from(BundleBuilderError::IdentityKey))
 			}
 		};
 		let number_shares = match self.number_shares {
 			Some(d) => d,
 			None => {
-				return Err(anyhow::Error::from(BundleBuilderError::NumberSharesNotSet))
+				return Err(anyhow::Error::from(BundleBuilderError::NumberShares))
 			}
 		};
 		match partner {
@@ -97,7 +97,7 @@ impl BundleBuilder {
 					address_rks,
 					number_shares
 				};
-				Ok(PartnerBundle::Alice(alice_bundle))
+				Ok(PartnerBundle::Alice(Box::new(alice_bundle)))
 			}
 			AliceBob::Bob => {
 				let enc_rk = BobKeyBundle::new(&identity_key);
@@ -116,7 +116,7 @@ impl BundleBuilder {
 					address_pks: None,
 					number_shares
 				};
-				Ok(PartnerBundle::Bob(bob_bundle))
+				Ok(PartnerBundle::Bob(Box::new(bob_bundle)))
 			}
 		}
 	}
@@ -131,8 +131,8 @@ pub enum PartnerBundleError {
 }
 
 pub enum PartnerBundle {
-	Alice(AliceBundle),
-	Bob(BobBundle),
+	Alice(Box<AliceBundle>),
+	Bob(Box<BobBundle>),
 }
 
 pub struct AliceBundle {
@@ -299,7 +299,7 @@ impl From<&BobBundle> for ExBobBundle {
 impl From<&ExBobBundle> for BobBundle {
 	fn from(ex_bb: &ExBobBundle) -> Self {
 		let enc_rk = ex_bb.enc_rk.borrow().into();
-		let enc_pk = ex_bb.enc_pk.as_ref().map(|e| PublicKey::from_jwk_str(&e).unwrap());
+		let enc_pk = ex_bb.enc_pk.as_ref().map(|e| PublicKey::from_jwk_str(e).unwrap());
 		let shka = ex_bb.shka.borrow().into();
 		let snhkb = ex_bb.snhkb.borrow().into();
 		let address_rks = ex_bb.address_rks.iter()
@@ -352,7 +352,7 @@ impl BobBundle {
 	pub fn strip(&self) -> Self {
 		Self {
 			enc_rk: self.enc_rk.strip(),
-			enc_pk: self.enc_pk.clone(),
+			enc_pk: self.enc_pk,
 			shka: self.shka.strip(),
 			snhkb: self.snhkb.strip(),
 			address_rks: self.address_rks.iter().map(|e| e.strip()).collect(),

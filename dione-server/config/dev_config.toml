@@ -1,9 +1,0 @@
-node_name = "Dev-Node-1"
-
-[network_con.message_storage]
-ip = "127.0.0.1"
-port = 50051
-
-[network_con.conf_retrv]
-ip = "127.0.0.1"
-port = 2000
