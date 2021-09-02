@@ -74,7 +74,7 @@ impl From<&ExAddressRatchet> for AddressRatchet {
 			private_key: dhs_private,
 			public_key: dhs_public
 		};
-		let dhr = ex_ar.dhr.as_ref().map(|e| PublicKey::from_jwk_str(&e).unwrap());
+		let dhr = ex_ar.dhr.as_ref().map(|e| PublicKey::from_jwk_str(e).unwrap());
 		Self {
 			dhs,
 			dhr,

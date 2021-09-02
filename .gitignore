@@ -1,5 +1,4 @@
 /target
 Cargo.lock
-/dione-server/server.sqlite3
 
 .idea/

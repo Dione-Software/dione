@@ -19,7 +19,7 @@ use dione_lib::cryptography::ratchet::AddressShare;
 use serde::{Deserialize, Serialize};
 
 mod net;
-pub(crate) mod session;
+pub mod session;
 mod bundle;
 mod user;
 mod host;
@@ -118,7 +118,7 @@ impl Client {
 
         let bundle_bytes = bundle.strip().to_bytes()?;
 
-        let host_bundle = HostBundle::new(self.db.clone(), bundle);
+        let host_bundle = HostBundle::new(self.db.clone(), *bundle);
         self.host_bundle = Some(host_bundle);
 
 
@@ -132,7 +132,7 @@ impl Client {
         let peer_uuid = id.as_bytes().to_vec();
 
         let (_, server_address) = self.known_hosts.get_server_for_message(&self.runtime, &peer_uuid)?;
-        let peer_bundle_bytes = get_message(&self.runtime, server_address.clone(), &peer_uuid)?.content;
+        let peer_bundle_bytes = get_message(&self.runtime, server_address, &peer_uuid)?.content;
 
         let bundle = BundleBuilder::default()
             .identity_key(self.host_identity_key.clone())
@@ -171,10 +171,10 @@ impl Client {
     /// Step two for establishing a communication session. Remote peers id is needed.
     pub fn init_two_session(&mut self, id: Uuid) -> anyhow::Result<()> {
         let peer_uuid = id.as_bytes().to_vec();
-        let mut host_peer_key = peer_uuid.clone();
+        let mut host_peer_key = peer_uuid;
         let mut seperator = b"-".to_vec();
         host_peer_key.append(&mut seperator);
-        host_peer_key.append(&mut self.host_user.id.as_bytes().to_vec().clone());
+        host_peer_key.append(&mut self.host_user.id.as_bytes().to_vec());
 
         let (_, server_address) = self.known_hosts.get_server_for_message(&self.runtime, &host_peer_key)?;
 
@@ -204,12 +204,12 @@ impl Client {
 
     /// Step three for establishing a communication session. Remote peers id is needed.
     pub fn init_three_session(&mut self, id: Uuid) -> anyhow::Result<()> {
-        let peer_uuid = id.as_bytes().to_vec();
+        let mut peer_uuid = id.as_bytes().to_vec();
 
-        let mut host_peer_key = self.host_user.id.as_bytes().to_vec().clone();
+        let mut host_peer_key = self.host_user.id.as_bytes().to_vec();
         let mut seperator = b"-".to_vec();
         host_peer_key.append(&mut seperator);
-        host_peer_key.append(&mut peer_uuid.clone());
+        host_peer_key.append(&mut peer_uuid);
         let mut ender = b"!".to_vec();
         host_peer_key.append(&mut ender);
 
@@ -237,10 +237,10 @@ impl Client {
     /// Step four for establishing a communication session. Remote peers id is needed.
     pub fn start_session(&mut self, id: Uuid) -> anyhow::Result<()> {
         let peer_uuid = id.as_bytes().to_vec();
-        let mut host_peer_key = peer_uuid.clone();
+        let mut host_peer_key = peer_uuid;
         let mut seperator = b"-".to_vec();
         host_peer_key.append(&mut seperator);
-        host_peer_key.append(&mut self.host_user.id.as_bytes().to_vec().clone());
+        host_peer_key.append(&mut self.host_user.id.as_bytes().to_vec());
         let mut ender = b"!".to_vec();
         host_peer_key.append(&mut ender);
         host_peer_key.append(&mut ender);

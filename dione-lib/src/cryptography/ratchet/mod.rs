@@ -163,7 +163,7 @@ impl From<&MagicRatchet> for ExMagicRatchet {
 		let address_ratchets = mr.address_ratchets
 			.iter()
 			.map(|e| e.export())
-			.map(|e| NestedVec::from(e))
+			.map(NestedVec::from)
 			.collect();
 		let skipped_addresses = mr.skipped_addresses.clone();
 		Self {
