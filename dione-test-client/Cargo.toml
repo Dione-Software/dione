@@ -2,6 +2,13 @@
 name = "dione-test-client"
 version = "0.1.0"
 edition = "2018"
+authors = ["Noah Dörr", "Hannes Furmans"]
+license = "Apache-2.0"
+description = "Simple Test client for the Dione Network"
+readme = "README.md"
+homepage = "http://dione.network"
+repository = "https://github.com/Dione-Software/dione"
+keywords = ["libp2p", "messaging"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
