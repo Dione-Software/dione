@@ -2,11 +2,13 @@
 name = "dione-server"
 version = "0.1.0"
 edition = "2018"
+authors = ["umgefahren"]
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tonic = "0.5"
+tonic = {version = "0.5", features = ["tls"]}
 prost = "0.8"
 tokio = { version = "1.7", features = ["macros", "rt-multi-thread", "fs"] }
 tracing = "0.1"
@@ -25,9 +27,10 @@ sled = "0.34.6"
 anyhow = "1.0.43"
 async-trait = "0.1.51"
 tera = "1.12.1"
-actix-web = "4.0.0-beta.8"
+actix-web = {version = "4.0.0-beta.8", features = ["rustls"]}
 actix-rt = "2.2.0"
 tracing-actix-web = "0.4.0-beta.11"
+rustls = "0.19"
 
 
 [build-dependencies]

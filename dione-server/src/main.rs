@@ -12,6 +12,10 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
 use actix_rt::{System, Arbiter};
+use rustls::{ServerConfig, NoClientAuth};
+use std::io::BufReader;
+use std::fs::File;
+use rustls::internal::pemfile::{certs, pkcs8_private_keys};
 
 pub(crate) mod message_storage {
 	include!(concat!(env!("OUT_DIR"), "/messagestorage.rs"));
@@ -36,11 +40,35 @@ struct Opt {
 
 	#[structopt(long)]
 	db_path: PathBuf,
+
+	#[structopt(long, default_value = "8080")]
+	web_http_port: usize,
+
+	#[structopt(long, default_value = "8443")]
+	web_https_port: usize,
+
+	#[structopt(subcommand)]
+	tls: Option<Tls>,
+}
+
+#[derive(StructOpt, Debug, Clone)]
+enum Tls {
+	NoTls,
+	Tls {
+		#[structopt(long)]
+		private_key: PathBuf,
+		#[structopt(long)]
+		public_key: PathBuf
+	}
+}
+
+impl Default for Tls {
+	fn default() -> Self {
+		Self::NoTls
+	}
 }
 
 fn main() -> anyhow::Result<()> {
-	std::env::set_var("RUST_LOG", "actix_web=info");
-
 	let collector = tracing_subscriber::fmt()
 		.with_max_level(Level::INFO)
 		.finish();
@@ -108,10 +136,33 @@ fn main() -> anyhow::Result<()> {
 
 	let client_clone = client.clone();
 
+	let config: Option<ServerConfig> = match opt.tls.clone() {
+		None => None,
+		Some(e) => {
+			match e {
+				Tls::NoTls => {
+					None
+				}
+				Tls::Tls { public_key, private_key} => {
+					let mut config = ServerConfig::new(NoClientAuth::new());
+					let cert_file = &mut BufReader::new(File::open(public_key).unwrap());
+					let key_file = &mut BufReader::new(File::open(private_key).unwrap());
+					let cert_chain = certs(cert_file).unwrap();
+					let mut keys = pkcs8_private_keys(key_file).unwrap();
+					config.set_single_cert(cert_chain, keys.remove(0)).unwrap();
+					Some(config)
+				}
+			}
+		}
+	};
+
+	let web_http_port = opt.web_http_port;
+	let web_https_port = opt.web_https_port;
+
 	let _ = System::new();
 	let arbiter = Arbiter::new();
 	arbiter.spawn(async move {
-		web_service::make_server(client_clone).await.unwrap();
+		web_service::make_server(client_clone, config, web_http_port, web_https_port).await.unwrap();
 	});
 
 	let signal_handler = rt.spawn(async move {
@@ -132,10 +183,12 @@ fn main() -> anyhow::Result<()> {
 
 	println!("Storer listening on {}", addr);
 
+	let mut basic_server = Server::builder();
+
 	let svc = crate::message_storage::message_storage_server::MessageStorageServer::new(greeter);
 	let loc = crate::message_storage::location_server::LocationServer::new(locer);
 	let server_handler = rt.spawn(async move {
-		Server::builder()
+		basic_server
 			.add_service(svc)
 			.add_service(loc)
 			.serve(addr)
