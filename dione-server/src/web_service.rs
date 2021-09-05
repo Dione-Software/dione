@@ -8,6 +8,7 @@ use actix_web::dev::Server;
 use actix_web::web::Data;
 use rustls::ServerConfig;
 
+#[allow(clippy::async_yields_async)]
 #[instrument]
 async fn index(
     template: web::Data<Tera>,
