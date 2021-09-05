@@ -297,11 +297,18 @@ impl EventLoop {
 				id,
 				result: QueryResult::GetRecord(Ok(GetRecordOk{ records, .. })), ..
 			})) => {
-				let data = records.get(0).unwrap().record.value.clone();
-				let bundle: anyhow::Result<ServerAddrBundle, bincode::Error> = bincode::deserialize(&data);
-				let bundle = match bundle {
-					Ok(d) => Ok(d),
-					Err(e) => Err(anyhow::Error::from(e))
+				let bundle = match records.get(0) {
+					None => {
+						Err(anyhow::Error::msg("No Clear address record returned from query"))
+					}
+					Some(d) => {
+						let data = d.record.value.clone();
+						let bundle: anyhow::Result<ServerAddrBundle, bincode::Error> = bincode::deserialize(&data);
+						match bundle {
+							Ok(r) => Ok(r),
+							Err(e) => Err(anyhow::Error::from(e)),
+						}
+					}
 				};
 				let _ = self
 					.pending_get_clear_addr

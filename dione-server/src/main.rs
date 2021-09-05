@@ -27,23 +27,49 @@ mod network;
 mod web_service;
 
 #[derive(Debug, StructOpt, Clone)]
-#[structopt(name = "Dione Server")]
+#[structopt(name = "Dione Server", about="Implementation of the server part of Dione.", version = "0.1.0-alpha")]
 struct Opt {
+	/// External Address of gRPC server
+	///
+	/// The address where the gRPC server listens  for incoming connections from clients. Important are interface and port.
+	///
+	/// Example for listening on all interfaces with port 8010: 0.0.0.0:8010
 	#[structopt(long)]
 	ex: SocketAddr,
 
-	#[structopt(long)]
+	/// External Address of libp2p part
+	///
+	/// The address where the libp2p part listens for incoming connections from other peers.
+	/// Pass the value in Multiaddress format.
+	///
+	/// Example for listening on all interfaces with assigned port: /ip4/0.0.0.0/tcp/0
+	#[structopt(long, short)]
 	listen_address: Option<Multiaddr>,
 
-	#[structopt(long)]
+	/// Clear Address of gRPC server
+	///
+	/// The address where the gRPC server can be contacted. This is very important for assigned domains or if several interfaces where specified.
+	/// Protocol identifier has to be passed along, as well as port. Clear Address and External Address have to be linked.
+	///
+	/// Example for listening on localhost's port 8010: http://localhost:8010
+	#[structopt(long, short)]
 	clear_address: Option<String>,
 
-	#[structopt(long)]
+	/// Path to/for Database
+	///
+	/// Path to the database. If there is no database at the specified location a new one will be created. Target is a directory not a file.
+	#[structopt(short = "db", long)]
 	db_path: PathBuf,
 
+	/// HTTP port for web server
+	///
+	/// Specifies the port were the web server belonging to the node will be listening for http requests.
 	#[structopt(long, default_value = "8080")]
 	web_http_port: usize,
 
+	/// HTTPS port for web server
+	///
+	/// Specifies the port were the web server belonging to the node will be listening for https requests. Only comes into effect if TLS is configured.
 	#[structopt(long, default_value = "8443")]
 	web_https_port: usize,
 
@@ -52,11 +78,16 @@ struct Opt {
 }
 
 #[derive(StructOpt, Debug, Clone)]
+#[structopt(about="Subcommand for configuring/enabling/disabling TLS (currently only for webserver)")]
 enum Tls {
+	/// Disables TLS (default)
 	NoTls,
+	/// Enables TLS
 	Tls {
+		/// Path to private key of certificate
 		#[structopt(long)]
 		private_key: PathBuf,
+		/// Path to keychain of certificate
 		#[structopt(long)]
 		public_key: PathBuf
 	}
