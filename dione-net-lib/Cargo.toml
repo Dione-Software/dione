@@ -10,7 +10,6 @@ homepage = "http://dione.network"
 repository = "https://github.com/Dione-Software/dione"
 keywords = ["libp2p", "messaging"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 tonic = "0.5.2"

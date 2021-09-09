@@ -6,8 +6,8 @@ use crate::network::Client;
 use actix_web::{web, HttpRequest, HttpResponse, HttpServer, App};
 use actix_web::dev::Server;
 use actix_web::web::Data;
-use rustls::ServerConfig;
 
+#[allow(clippy::async_yields_async)]
 #[instrument]
 async fn index(
     template: web::Data<Tera>,
@@ -23,7 +23,7 @@ async fn index(
     HttpResponse::Ok().content_type("text/html").body(s)
 }
 
-pub async fn make_server(client: Client, config: Option<ServerConfig>, web_http_port: usize, web_https_port: usize) -> Result<Server, std::io::Error> {
+pub async fn make_server(client: Client, config: Option<rustls::ServerConfig>, web_http_port: usize, web_https_port: usize) -> Result<Server, std::io::Error> {
     println!("Starting server");
     let mut tera = Tera::default();
     tera.add_raw_template("node_interface.html", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/node_interface.html"))).unwrap();
@@ -31,7 +31,6 @@ pub async fn make_server(client: Client, config: Option<ServerConfig>, web_http_
         App::new()
             .app_data(Data::new(tera.clone()))
             .app_data(Data::new(Mutex::new(client.clone())))
-            .wrap(tracing_actix_web::TracingLogger::default())
             .service(web::resource("/").route(web::get().to(index)))
     });
     let http_address = format!("0.0.0.0:{}", web_http_port);
