@@ -1,5 +1,4 @@
-![Dione Logo without Text](./assets/logo_wo_name.svg)
-# Dione
+![Dione Logo without Text](./assets/logo_w_name.svg)
 ## Secure and Anonymous Messaging
 __WARNING:__ Currently Dione is not ready to be used nor does it fulfill its goal of being an anonymous messenger.
 In order to achieve that every client's traffic and maybe every node's traffic hast to be routed through an Onion Router.
