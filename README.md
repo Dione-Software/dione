@@ -60,7 +60,7 @@ The server application has many optional arguments one can pass. For now we run 
 
 `dione-server --db-path node1 --ex 0.0.0.0:8010 --clear-address http://localhost:8010 --listen-address /ip4/0.0.0.0/tcp/0`
 
-Next open your browser and navigate two: `localhost:8080` Copy the peer address starting with `/ip4/127.0.0.1/tcp/`.
+Next open your browser and navigate to: `localhost:8080` Copy the peer address starting with `/ip4/127.0.0.1/tcp/`.
 This is the libp2p address of the first node which the second node connects to. This address has to be set as the environment variable for remote peer with (**run in new terminal window**):
 
 `export PEER=address copied previous`
