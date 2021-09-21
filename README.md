@@ -1,4 +1,13 @@
 ![Dione Logo without Text](./assets/logo_wo_name_wide.svg)
+[![GitHub issues](https://img.shields.io/github/issues/Dione-Software/dione?style=flat-square)](https://github.com/Dione-Software/dione/issues)
+[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/Dione-Software/dione/Rust?label=Check&style=flat-square)](https://github.com/Dione-Software/dione/actions/workflows/rust.yml)
+[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/Dione-Software/dione/container?label=Container%20Build&style=flat-square)](https://github.com/Dione-Software/dione/actions/workflows/docker.yml)
+[![GitHub release date](https://img.shields.io/github/release-date-pre/Dione-Software/dione?style=flat-square)](https://github.com/Dione-Software/dione/releases)
+![GitHub last commit](https://img.shields.io/github/last-commit/Dione-Software/dione?style=flat-square)
+![Docker Pulls](https://img.shields.io/docker/pulls/umgefahren/dione-server?style=flat-square)
+![GitHub top language](https://img.shields.io/github/languages/top/Dione-Software/dione?style=flat-square)
+
+
 ## Secure and Anonymous Messaging
 __WARNING:__ Currently Dione is not ready to be used nor does it fulfill its goal of being an anonymous messenger.
 In order to achieve that every client's traffic and maybe every node's traffic hast to be routed through an Onion Router.
