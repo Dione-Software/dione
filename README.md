@@ -1,3 +1,4 @@
+![Dione Logo without Text](./assets/logo_wo_name.svg)
 # Dione
 ## Secure and Anonymous Messaging
 __WARNING:__ Currently Dione is not ready to be used nor does it fulfill its goal of being an anonymous messenger.
@@ -9,8 +10,8 @@ However, first other issues have to be resolved and none of these services have 
 | Service | Favoured Client |
 |---------|-----------------|
 | [Tor](https://www.torproject.org) | [Arti](https://gitlab.torproject.org/tpo/core/arti)|
-| [I2P](https://geti2p.net/en/)     | [I2p-rs](https://github.com/i2p/i2p-rs) (could be deprecated) |
-| [Lokinet](https://lokinet.org) | (none, but there is a [blogpost](https://oxen.io/blog/lokinet-goes-next-level-integration-in-session-and-other-apps))          |
+| I2P     | [I2p-rs](https://github.com/i2p/i2p-rs) (could be deprecated) |
+| Lokinet | (none)          |
 
 
 ## What is Dione?
