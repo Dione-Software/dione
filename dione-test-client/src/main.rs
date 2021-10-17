@@ -8,7 +8,7 @@ use std::ops::Not;
 
 #[derive(Debug, StructOpt)]
 struct Opt {
-	#[structopt(long, default_value = "http://127.0.0.1:8000")]
+	#[structopt(long, default_value = "http://127.0.0.1:8080")]
 	server: String,
 	#[structopt(parse(from_os_str))]
 	db_path: PathBuf,
