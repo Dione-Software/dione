@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 
 use crate::cryptography::sharing::{ThresholdSharingAlgorithm, SharingError};
-use sss_rs::wrapped_sharing::{Secret, share};
+use sss_rs::wrapped_sharing::{reconstruct, Secret, share};
 
 #[derive(Default)]
 pub struct ShamirSecretSharing;
@@ -17,7 +17,7 @@ impl ThresholdSharingAlgorithm for ShamirSecretSharing {
 
 	fn reconstruct(&self, inp: &[Vec<u8>]) -> Result<Vec<u8>, SharingError> {
 		let mut secret = Secret::empty_in_memory();
-		secret.reconstruct(inp.to_vec(), false).unwrap();
+		reconstruct(&mut secret, inp.to_vec(), false).unwrap();
 		let out_data = secret.unwrap_to_vec().unwrap();
 		Ok(out_data)
 	}
