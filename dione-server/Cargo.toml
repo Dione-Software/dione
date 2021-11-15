@@ -32,7 +32,7 @@ async-trait = "0.1.51"
 tera = "1.12.1"
 actix-web = {version = "3", features = ["rustls"]}
 actix-rt = "2.2.0"
-rustls = "0.18"
+rustls = "0.20"
 
 
 [build-dependencies]
