@@ -6,14 +6,14 @@ authors = ["Noah Dörr", "Hannes Furmans"]
 license = "Apache-2.0"
 description = "Server implementation of Dione"
 readme = "README.md"
-homepage = "http://dione.network"
+homepage = "https://dione.network"
 repository = "https://github.com/Dione-Software/dione"
 keywords = ["libp2p", "messaging"]
 
 [dependencies]
 tonic = {version = "0.5", features = ["tls"]}
 prost = "0.8"
-tokio = { version = "1.7", features = ["macros", "rt-multi-thread", "fs"] }
+tokio = { version = "1.13", features = ["macros", "rt-multi-thread", "fs"] }
 tracing = "0.1"
 tracing-subscriber = "0.3.1"
 dione-lib = { path = "../dione-lib" }
@@ -21,7 +21,7 @@ adler = { version = "1.0.2", default-features = false }
 serde_derive = "1"
 serde = { version = "1", features = ["serde_derive"] }
 toml = "0.5"
-libp2p = { version = "0.39.1", features = ["tcp-async-io", "kad", "dns-async-std", "websocket", "noise", "mplex", "yamux"], default-features = false }
+libp2p = { version = "0.40.0", features = ["tcp-async-io", "kad", "dns-async-std", "websocket", "noise", "mplex", "yamux"], default-features = false }
 tokio-stream = "0.1.7"
 void = "1.0.2"
 structopt = "0.3.22"

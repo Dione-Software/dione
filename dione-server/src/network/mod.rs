@@ -6,7 +6,7 @@ use libp2p::kad::store::MemoryStore;
 use std::error::Error;
 use tokio::sync::{oneshot, mpsc};
 use std::collections::{HashSet, HashMap};
-use libp2p::swarm::{SwarmEvent, SwarmBuilder};
+use libp2p::swarm::{SwarmEvent, SwarmBuilder, DialError};
 use libp2p::multiaddr::Protocol;
 use libp2p::kad::record::Key;
 use tokio_stream::StreamExt;
@@ -16,7 +16,7 @@ type ShareAddress = Vec<u8>;
 
 pub async fn new() -> Result<(Client, EventLoop), Box<dyn Error>> {
 	let id_keys = libp2p::identity::Keypair::generate_ed25519();
-	let peer_id = id_keys.public().into_peer_id();
+	let peer_id = id_keys.public().to_peer_id();
 
 	let transport = libp2p::development_transport(id_keys).await.unwrap();
 
@@ -356,7 +356,23 @@ impl EventLoop {
 					address.with(Protocol::P2p(local_peer_id.into()))
 				)
 			}
-			SwarmEvent::IncomingConnection { .. } => {},
+			SwarmEvent::IncomingConnection { local_addr, send_back_addr } => {
+				tracing::debug!("local addr {:?}", local_addr);
+				tracing::debug!("send back addr {:?}", send_back_addr);
+				let mut remote_addr = send_back_addr.clone();
+				let remote_port = remote_addr.pop().unwrap();
+				let new_remote_port = match remote_port {
+					Protocol::Tcp(p) => {
+						Protocol::Tcp(p - 1)
+					},
+					_ => {
+						tracing::error!("This is a fatal error this shouldn't have happened");
+						remote_port
+					}
+				};
+				remote_addr.push(new_remote_port);
+				self.swarm.dial_addr(remote_addr).expect("Error dialing send back addr");
+			},
 			SwarmEvent::ConnectionEstablished {
 				peer_id, endpoint, ..
 			} => {
@@ -368,18 +384,23 @@ impl EventLoop {
 					}
 				}
 			}
-			SwarmEvent::UnreachableAddr {
-				peer_id,
-				attempts_remaining,
+			SwarmEvent::OutgoingConnectionError {
 				error,
-				..
+				peer_id
 			} => {
-				if attempts_remaining == 0 {
-					if let Some(sender) = self.pending_dial.remove(&peer_id) {
+				tracing::error!("Had outgoing connection error {:?}", &error);
+				/*
+				match peer_id {
+					Some(d) => {
+					if let Some(sender) = self.pending_dial.remove(&d) {
 						let _ = sender.send(Err(anyhow::Error::from(error)));
-					}
+					}},
+					None => {}
 				}
-			},
+				 */
+
+			}
+
 			SwarmEvent::ConnectionClosed { .. } => {},
 			SwarmEvent::Dialing( .. ) => {},
 			e => panic!("{:?}", e),
@@ -397,6 +418,7 @@ impl EventLoop {
 			}
 			Command::Dial { peer_id, peer_addr, sender } => {
 				if let std::collections::hash_map::Entry::Vacant(_) = self.pending_dial.entry(peer_id) {
+
 					self.swarm
 						.behaviour_mut()
 						.kademlia
