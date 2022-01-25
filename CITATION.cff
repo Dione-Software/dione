@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software or base research around it, please cite it as below."
+authors:
+- family-names: "Furmans"
+  given-names: "Hannes"
+  orcid: "https://orcid.org/0000-0001-5258-9556"
+title: "Dione - Decentralized communcication system"
+version: 0.1.0
+date-released: 2021-07-03
+url: "https://github.com/Dione-Software/dione.git"
