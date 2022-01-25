@@ -7,7 +7,6 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/Dione-Software/dione?style=flat-square)
 ![Docker Pulls](https://img.shields.io/docker/pulls/umgefahren/dione-server?style=flat-square)
 ![GitHub top language](https://img.shields.io/github/languages/top/Dione-Software/dione?style=flat-square)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/7a6bbde0433b456b8f2243f92bed56b2)](https://www.codacy.com/gh/Dione-Software/dione/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=Dione-Software/dione&amp;utm_campaign=Badge_Grade)
 
 
 ## Secure and Anonymous Messaging
