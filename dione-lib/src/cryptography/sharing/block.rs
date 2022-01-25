@@ -1,5 +1,5 @@
 use crate::cryptography::sharing::{SharingAlgorithm, SharingError};
-use alloc::prelude::v1::Vec;
+use alloc::vec::Vec;
 use rand_core::OsRng;
 use rand::Rng;
 

@@ -6,7 +6,7 @@ use libp2p::kad::store::MemoryStore;
 use std::error::Error;
 use tokio::sync::{oneshot, mpsc};
 use std::collections::{HashSet, HashMap};
-use libp2p::swarm::{SwarmEvent, SwarmBuilder, DialError};
+use libp2p::swarm::{SwarmEvent, SwarmBuilder};
 use libp2p::multiaddr::Protocol;
 use libp2p::kad::record::Key;
 use tokio_stream::StreamExt;
@@ -386,7 +386,7 @@ impl EventLoop {
 			}
 			SwarmEvent::OutgoingConnectionError {
 				error,
-				peer_id
+				..
 			} => {
 				tracing::error!("Had outgoing connection error {:?}", &error);
 				/*
