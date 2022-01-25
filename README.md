@@ -1,4 +1,5 @@
 ![Dione Logo without Text](./assets/logo_wo_name_wide.svg)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/a4515233398b4127a8d0b7fb81905ab0)](https://app.codacy.com/gh/Dione-Software/dione?utm_source=github.com&utm_medium=referral&utm_content=Dione-Software/dione&utm_campaign=Badge_Grade_Settings)
 [![GitHub issues](https://img.shields.io/github/issues/Dione-Software/dione?style=flat-square)](https://github.com/Dione-Software/dione/issues)
 [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/Dione-Software/dione/Rust?label=Check&style=flat-square)](https://github.com/Dione-Software/dione/actions/workflows/rust.yml)
 [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/Dione-Software/dione/container?label=Container%20Build&style=flat-square)](https://github.com/Dione-Software/dione/actions/workflows/docker.yml)
