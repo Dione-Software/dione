@@ -15,7 +15,7 @@ keywords = ["libp2p", "messaging"]
 
 [dependencies]
 dione-net-lib = { path = "../dione-net-lib" }
-dialoguer = "0.9.0"
+dialoguer = "0.10.2"
 structopt = "0.3.22"
 anyhow = "1.0.43"
 uuid = { version = "0.8", features = ["v4"] }
