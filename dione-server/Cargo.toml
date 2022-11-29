@@ -36,7 +36,7 @@ rustls = "0.18"
 
 
 [build-dependencies]
-tonic-build = "0.5.1"
+tonic-build = "0.8.3"
 
 [dev-dependencies]
 dione-test-client = { path = "../dione-test-client" }
